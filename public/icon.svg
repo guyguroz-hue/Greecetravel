@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="My Trip Planner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e63c9"/>
+      <stop offset="0.55" stop-color="#2b8fd6"/>
+      <stop offset="1" stop-color="#7ec8e3"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path d="M256 118c-53 0-96 43-96 96 0 68 78 152 90 165a8 8 0 0 0 12 0c12-13 90-97 90-165 0-53-43-96-96-96Z" fill="#fff" opacity="0.95"/>
+  <circle cx="256" cy="212" r="38" fill="#1e63c9"/>
+  <path d="M104 402q56-26 112 0t112 0 80 0" fill="none" stroke="#fff" stroke-width="20" stroke-linecap="round" opacity="0.6"/>
+</svg>

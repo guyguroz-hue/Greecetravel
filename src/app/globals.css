@@ -1,0 +1,353 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------ *
+ * Design tokens
+ * A calm, premium "Aegean" palette: deep sea blue + warm sand.
+ * Every colour is defined once on :root, then re-declared for dark.
+ * ------------------------------------------------------------------ */
+@theme {
+  --font-sans:
+    'Rubik', 'Heebo', system-ui, -apple-system, 'Segoe UI', 'Noto Sans Hebrew', 'Assistant', Arial,
+    sans-serif;
+
+  --color-sea-50: #eef6ff;
+  --color-sea-100: #d9ecff;
+  --color-sea-200: #bcdeff;
+  --color-sea-300: #8ec8ff;
+  --color-sea-400: #59a8ff;
+  --color-sea-500: #3386fb;
+  --color-sea-600: #1d67f0;
+  --color-sea-700: #1651dc;
+  --color-sea-800: #1943b2;
+  --color-sea-900: #1a3c8c;
+  --color-sea-950: #142655;
+
+  --color-sand-50: #fdf8ed;
+  --color-sand-100: #f9edd0;
+  --color-sand-200: #f2d89e;
+  --color-sand-300: #eabd66;
+  --color-sand-400: #e3a33f;
+  --color-sand-500: #db8629;
+  --color-sand-600: #c26720;
+  --color-sand-700: #a14b1d;
+  --color-sand-800: #833c1e;
+  --color-sand-900: #6c331b;
+
+  --radius-card: 1rem;
+
+  --animate-fade-in: fade-in 0.18s ease-out;
+  --animate-slide-up: slide-up 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-sheet-in: sheet-in 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-shimmer: shimmer 1.6s linear infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Semantic surface tokens
+ * ------------------------------------------------------------------ */
+:root {
+  --bg: #f6f7f9;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #eef0f4;
+  --bg-inset: #f9fafb;
+  --border: #e3e6ec;
+  --border-strong: #cdd3dd;
+  --text: #131722;
+  --text-muted: #667085;
+  --text-faint: #98a2b3;
+  --brand: #1651dc;
+  --brand-contrast: #ffffff;
+  --brand-soft: #e7effe;
+  --accent: #db8629;
+  --accent-soft: #fdf1de;
+  --danger: #d62f45;
+  --danger-soft: #fdecee;
+  --success: #12855f;
+  --success-soft: #e3f6ef;
+  --warning: #b4740a;
+  --warning-soft: #fdf3df;
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.04);
+  --shadow-md: 0 4px 8px -2px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.04);
+  --shadow-lg: 0 12px 28px -6px rgb(16 24 40 / 0.14), 0 4px 10px -4px rgb(16 24 40 / 0.06);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0c0f16;
+  --bg-elevated: #151a24;
+  --bg-subtle: #1c2230;
+  --bg-inset: #11151d;
+  --border: #262d3c;
+  --border-strong: #37405280;
+  --text: #eef1f6;
+  --text-muted: #97a1b4;
+  --text-faint: #6b7688;
+  --brand: #6ba4ff;
+  --brand-contrast: #08122b;
+  --brand-soft: #16233d;
+  --accent: #eabd66;
+  --accent-soft: #302512;
+  --danger: #ff8290;
+  --danger-soft: #351a20;
+  --success: #4ed3a3;
+  --success-soft: #102b23;
+  --warning: #eab55a;
+  --warning-soft: #2f2413;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 10px -2px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 16px 32px -8px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0c0f16;
+    --bg-elevated: #151a24;
+    --bg-subtle: #1c2230;
+    --bg-inset: #11151d;
+    --border: #262d3c;
+    --border-strong: #37405280;
+    --text: #eef1f6;
+    --text-muted: #97a1b4;
+    --text-faint: #6b7688;
+    --brand: #6ba4ff;
+    --brand-contrast: #08122b;
+    --brand-soft: #16233d;
+    --accent: #eabd66;
+    --accent-soft: #302512;
+    --danger: #ff8290;
+    --danger-soft: #351a20;
+    --success: #4ed3a3;
+    --success-soft: #102b23;
+    --warning: #eab55a;
+    --warning-soft: #2f2413;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 10px -2px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 16px 32px -8px rgb(0 0 0 / 0.6);
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--bg-elevated);
+  --color-subtle: var(--bg-subtle);
+  --color-inset: var(--bg-inset);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-brand: var(--brand);
+  --color-brand-contrast: var(--brand-contrast);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --shadow-card: var(--shadow-sm);
+  --shadow-raised: var(--shadow-md);
+  --shadow-float: var(--shadow-lg);
+}
+
+/* ------------------------------------------------------------------ *
+ * Base
+ * ------------------------------------------------------------------ */
+* {
+  border-color: var(--border);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+}
+
+/* Numbers, dates, currency and codes always read left-to-right,
+   even inside an RTL paragraph. */
+.ltr-nums {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+button,
+[role='button'],
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+/* iOS zooms in on focus when the font is under 16px */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.hide-print {
+  /* used by the share/print view */
+}
+@media print {
+  .hide-print {
+    display: none !important;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-subtle) 25%,
+    color-mix(in oklab, var(--bg-subtle) 60%, var(--bg-elevated)) 50%,
+    var(--bg-subtle) 75%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* ------------------------------------------------------------------ *
+ * Leaflet overrides — the default styling clashes badly with the app
+ * ------------------------------------------------------------------ */
+.leaflet-container {
+  background: var(--bg-subtle);
+  font-family: var(--font-sans);
+  z-index: 0;
+}
+.leaflet-control-attribution {
+  background: color-mix(in oklab, var(--bg-elevated) 80%, transparent) !important;
+  color: var(--text-faint) !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a {
+  color: var(--text-muted) !important;
+}
+.leaflet-bar a {
+  background: var(--bg-elevated) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+.leaflet-bar a:hover {
+  background: var(--bg-subtle) !important;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--bg-elevated) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: 244px !important;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 14px !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+.leaflet-popup-close-button {
+  color: var(--text-muted) !important;
+  inset-inline-end: 4px;
+  inset-inline-start: auto !important;
+  z-index: 2;
+}
+:root[data-theme='dark'] .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.94) contrast(0.92) saturate(0.7);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.94) contrast(0.92) saturate(0.7);
+  }
+}
+
+/* Custom divicon markers carry no default chrome */
+.trip-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* ------------------------------------------------------------------ *
+ * Drag & drop
+ * ------------------------------------------------------------------ */
+.dragging-active {
+  cursor: grabbing !important;
+}
+.dragging-active * {
+  cursor: grabbing !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
