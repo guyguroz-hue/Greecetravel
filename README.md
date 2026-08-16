@@ -6,10 +6,23 @@
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000
-npm run build      # ייצוא סטטי לתיקיית out/
+npm run dev            # http://localhost:3000
+npm run build          # בילד רגיל של Next
+npm start              # הרצת הבילד
 npm run typecheck
 npm run lint
+```
+
+### פריסה
+
+`npm run build` הוא בילד Next.js רגיל — זה מה ש-Vercel מריצה ללא שום הגדרה נוספת. אין בפרויקט
+קוד צד־שרת, כך שכל 19 המסלולים מתרנדרים מראש ל-HTML סטטי גם בבילד הזה.
+
+לאירוח על שרת קבצים פשוט (GitHub Pages, S3, Netlify Drop) יש מצב ייצוא סטטי:
+
+```bash
+npm run build:static   # יוצר תיקיית out/ עצמאית לחלוטין
+npm run serve:static
 ```
 
 בכניסה הראשונה נטען אוטומטית טיול הדגמה מלא — **צפון יוון, אוגוסט 2026** — עם 14 ימים,
@@ -43,8 +56,8 @@ npm run lint
 
 ## הטכנולוגיה
 
-- **Next.js 16** (App Router) + **React 19** + **TypeScript** — `output: 'export'`, כלומר הבילד הוא
-  אתר סטטי שאפשר לארח בכל מקום.
+- **Next.js 16** (App Router) + **React 19** + **TypeScript** — הכל רץ בצד הלקוח, כך שהבילד
+  הרגיל מתרנדר מראש לגמרי, ו-`build:static` מייצר חבילה סטטית שאפשר לארח בכל מקום.
 - **Tailwind CSS v4** — Design tokens ב-CSS, מצב בהיר וכהה, RTL מלא באמצעות logical properties.
 - **Zustand** — ניהול מצב עם undo, ושמירה אוטומטית (debounced) דרך שכבת ה-repository.
 - **dnd-kit** — Drag & Drop במסלול ובמסך המקומות, כולל תמיכה במגע ובמקלדת.
@@ -97,7 +110,7 @@ src/
 
 1. לממש `TripRepository` מול הטבלאות שב-[`docs/DATA_MODEL.md`](docs/DATA_MODEL.md).
 2. להחליף שורה אחת ב-`src/lib/db/index.ts`.
-3. להסיר `output: 'export'` מ-`next.config.ts` אם רוצים אימות בצד השרת.
+3. אם רוצים אימות או שאילתות בצד השרת — פשוט לא להשתמש ב-`build:static`.
 
 ---
 

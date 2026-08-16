@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npx serve out",
+    "build:static": "STATIC_EXPORT=1 next build",
+    "start": "next start",
+    "serve:static": "npx serve out",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
