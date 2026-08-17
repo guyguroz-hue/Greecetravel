@@ -80,7 +80,11 @@ create table if not exists public.trip_invites (
   trip_id     text not null references public.trips (id) on delete cascade,
   email       text,
   role        public.trip_role not null default 'editor',
-  token       text not null unique default encode(gen_random_bytes(16), 'hex'),
+  -- Built from gen_random_uuid(), which is core Postgres. gen_random_bytes()
+  -- would have been the obvious choice but it comes from pgcrypto, which
+  -- Supabase installs into a separate schema — leaving this DDL to fail or
+  -- not depending on the search_path in effect.
+  token       text not null unique default replace(gen_random_uuid()::text, '-', ''),
   invited_by  uuid references auth.users (id) on delete set null,
   created_at  timestamptz not null default now(),
   expires_at  timestamptz not null default now() + interval '30 days',
@@ -366,9 +370,20 @@ $$;
 /** Whoever creates a trip becomes its owner, in the same transaction. */
 create or replace function public.add_creator_as_owner()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v_owner uuid := coalesce(new.created_by, auth.uid());
 begin
+  -- Without this the failure surfaces as a NOT NULL violation on
+  -- trip_members.user_id, which says nothing about the actual cause:
+  -- a trip was inserted outside an authenticated session.
+  if v_owner is null then
+    raise exception
+      'a trip must be created by a signed-in user (auth.uid() was null)'
+      using errcode = '28000';
+  end if;
+
   insert into public.trip_members (trip_id, user_id, role)
-  values (new.id, coalesce(new.created_by, auth.uid()), 'owner')
+  values (new.id, v_owner, 'owner')
   on conflict (trip_id, user_id) do nothing;
   return new;
 end;
