@@ -34,8 +34,15 @@
 
 | שדה | ערך |
 | --- | --- |
-| Site URL | `https://rozentravel-greece.vercel.app` |
-| Redirect URLs | `https://rozentravel-greece.vercel.app/auth/callback`<br>`http://localhost:3000/auth/callback` |
+| Site URL | `https://rozentravel.vercel.app` |
+| Redirect URLs | `https://rozentravel.vercel.app/auth/callback`<br>`https://rozentravel-*.vercel.app/auth/callback`<br>`http://localhost:3000/auth/callback` |
+
+השורה עם ה-`*` מכסה את כתובות ה-Preview ש-Vercel מייצר לכל ענף. בלעדיה קישור התחברות
+שנפתח מ-Preview יידחה, וזה נראה כאילו ההתחברות שבורה.
+
+> הכתובת מופיעה כאן רק כדי ש-Supabase יאשר אותה. **בקוד היא לא כתובה בשום מקום** —
+> האפליקציה בונה את כתובת החזרה מ-`window.location.origin`, ולכן היא עובדת מכל דומיין
+> שממנו היא מוגשת בלי לשנות שורה.
 
 **Authentication → Providers → Email**: לוודא ש-Email מופעל. אפשר להשאיר
 ״Confirm email״ דלוק — הכניסה היא בקישור קסם ממילא.
