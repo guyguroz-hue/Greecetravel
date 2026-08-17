@@ -56,7 +56,12 @@ create table if not exists public.trips (
   updated_at       timestamptz not null default now()
 );
 
-create type public.trip_role as enum ('owner', 'editor', 'viewer');
+-- `create type` has no IF NOT EXISTS, and this file is meant to survive being
+-- run a second time after a partial first attempt.
+do $$ begin
+  create type public.trip_role as enum ('owner', 'editor', 'viewer');
+exception when duplicate_object then null;
+end $$;
 
 create table if not exists public.trip_members (
   trip_id    text not null references public.trips (id) on delete cascade,
