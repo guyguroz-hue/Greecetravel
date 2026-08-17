@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { CloudUpload, LogIn, LogOut, UserRound } from 'lucide-react';
@@ -48,7 +49,10 @@ export function CloudAccountCard() {
           </div>
 
           <p className="text-[12.5px] text-muted leading-relaxed">
-            הטיולים שלך נשמרים בחשבון ומסונכרנים בין כל המכשירים והאנשים שהזמנת.
+            הטיולים שלך נשמרים בחשבון ומסונכרנים בין כל המכשירים והאנשים שהזמנת.{' '}
+            <Link href="/setup" className="text-brand font-medium">
+              בדיקת חיבור
+            </Link>
           </p>
 
           {syncError && (
@@ -97,6 +101,12 @@ export function CloudAccountCard() {
             <LogIn className="size-4" />
             התחברות או הרשמה
           </Button>
+          <Link
+            href="/setup"
+            className="block text-center text-[12.5px] text-muted hover:text-brand transition mt-2.5"
+          >
+            משהו לא עובד? בדיקת חיבור לשרת
+          </Link>
         </Card>
       )}
     </section>
