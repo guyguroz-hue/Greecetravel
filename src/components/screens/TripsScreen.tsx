@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/Button';
 import { ConfirmDialog, EmptyState, LoadingScreen } from '@/components/ui/Feedback';
 import { Badge, ProgressBar } from '@/components/ui/Bits';
 import { CoverImage } from '@/components/layout/CoverImage';
+import { TripsAccountBar } from './TripsAccountBar';
 
 export function TripsScreen() {
   const status = useTripStatus();
@@ -78,6 +79,8 @@ export function TripsScreen() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-5 pb-16">
+        <TripsAccountBar />
+
         {trips.length === 0 ? (
           <EmptyState
             icon="🧳"

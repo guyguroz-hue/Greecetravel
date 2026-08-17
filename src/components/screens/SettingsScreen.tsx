@@ -1,10 +1,10 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import {
   Check,
   Download,
-  Eye,
   Globe,
   Moon,
   Pencil,
@@ -22,12 +22,7 @@ import { useActiveTrip } from '@/lib/store/hooks';
 import { useTripStore } from '@/lib/store/trip-store';
 import { toast, useSettingsStore, type ThemePreference } from '@/lib/store/ui-store';
 import { refreshRates } from '@/lib/services/currency';
-import {
-  CURRENCIES,
-  CURRENCY_META,
-  type CurrencyCode,
-  type SharePermission,
-} from '@/lib/types';
+import { CURRENCIES, CURRENCY_META, type CurrencyCode } from '@/lib/types';
 import { formatDateRange, formatShortDate } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { Card, SectionTitle } from '@/components/ui/Card';
@@ -36,16 +31,19 @@ import { Segmented, Select, TextInput, Toggle } from '@/components/ui/Field';
 import { Sheet } from '@/components/ui/Sheet';
 import { ConfirmDialog } from '@/components/ui/Feedback';
 import { Avatar, Badge } from '@/components/ui/Bits';
+import { CloudAccountCard } from '@/components/settings/CloudAccountCard';
+import { TripMembersCard } from '@/components/settings/TripMembersCard';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
 
 export function SettingsScreen() {
+  const router = useRouter();
   const active = useActiveTrip();
+  const authStatus = useAuthStore((s) => s.status);
   const updateTrip = useTripStore((s) => s.updateTrip);
   const addTraveler = useTripStore((s) => s.addTraveler);
   const updateTraveler = useTripStore((s) => s.updateTraveler);
   const removeTraveler = useTripStore((s) => s.removeTraveler);
-  const addShare = useTripStore((s) => s.addShare);
-  const updateShare = useTripStore((s) => s.updateShare);
-  const removeShare = useTripStore((s) => s.removeShare);
   const exportData = useTripStore((s) => s.exportData);
   const importData = useTripStore((s) => s.importData);
   const resetToDemo = useTripStore((s) => s.resetToDemo);
@@ -55,15 +53,17 @@ export function SettingsScreen() {
 
   const [tripSheet, setTripSheet] = useState(false);
   const [travelerName, setTravelerName] = useState('');
-  const [shareEmail, setShareEmail] = useState('');
-  const [sharePermission, setSharePermission] = useState<SharePermission>('view');
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   if (!active) return null;
-  const { trip, travelers, shares } = active;
+  const { trip, travelers } = active;
+
+  const supabaseAvailable = isSupabaseConfigured;
+  // Real sharing needs both a backend and a signed-in user.
+  const cloudReady = supabaseAvailable && authStatus === 'signed-in';
 
   const doExport = () => {
     const blob = new Blob([exportData()], { type: 'application/json' });
@@ -113,6 +113,8 @@ export function SettingsScreen() {
         className="sr-only"
         onChange={(e) => void doImport(e.target.files?.[0])}
       />
+
+      <CloudAccountCard />
 
       {/* ---------------- trip ---------------- */}
       <section className="mb-5">
@@ -302,100 +304,30 @@ export function SettingsScreen() {
       </section>
 
       {/* ---------------- sharing ---------------- */}
-      <section className="mb-5">
-        <SectionTitle>שיתוף הטיול</SectionTitle>
-        <Card className="divide-y divide-[var(--border)]">
-          {shares.length === 0 && (
-            <p className="px-4 py-4 text-[13px] text-muted">
-              הטיול עדיין לא משותף. אפשר להזמין בני משפחה לצפייה או לעריכה.
+      {cloudReady ? (
+        <TripMembersCard tripId={trip.id} tripName={trip.name} />
+      ) : (
+        <section className="mb-5">
+          <SectionTitle>שיתוף הטיול</SectionTitle>
+          <Card className="p-4">
+            <p className="text-[13px] text-muted leading-relaxed">
+              שיתוף עם אנשים נוספים דורש חשבון. בלי חשבון הטיול חי במכשיר הזה בלבד — אפשר
+              בינתיים לייצא גיבוי ולשלוח אותו.
             </p>
-          )}
-          {shares.map((s) => (
-            <div key={s.id} className="flex items-center gap-3 px-4 py-3">
-              <Avatar name={s.name || s.email} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-medium truncate">{s.name || s.email}</p>
-                <p className="text-[11.5px] text-muted truncate ltr-nums">{s.email}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  updateShare(s.id, { permission: s.permission === 'view' ? 'edit' : 'view' })
-                }
-                className={cn(
-                  'shrink-0 inline-flex items-center gap-1 px-2.5 h-8 rounded-lg text-[12px] font-medium transition',
-                  s.permission === 'edit'
-                    ? 'bg-brand-soft text-brand'
-                    : 'bg-subtle text-muted hover:bg-line'
-                )}
+            {supabaseAvailable && (
+              <Button
+                variant="secondary"
+                fullWidth
+                className="mt-3"
+                onClick={() => router.push('/login')}
               >
-                {s.permission === 'edit' ? (
-                  <Pencil className="size-3" />
-                ) : (
-                  <Eye className="size-3" />
-                )}
-                {s.permission === 'edit' ? 'עריכה' : 'צפייה'}
-              </button>
-              {s.status === 'pending' && <Badge tone="warning">ממתין</Badge>}
-              <button
-                type="button"
-                onClick={() => {
-                  removeShare(s.id);
-                  toast.show('השיתוף בוטל');
-                }}
-                aria-label={`ביטול שיתוף עם ${s.email}`}
-                className="shrink-0 p-1.5 rounded-lg text-faint hover:text-danger transition"
-              >
-                <Trash2 className="size-4" />
-              </button>
-            </div>
-          ))}
-
-          <div className="px-4 py-3 space-y-2">
-            <div className="flex gap-2">
-              <input
-                type="email"
-                dir="ltr"
-                value={shareEmail}
-                onChange={(e) => setShareEmail(e.target.value)}
-                placeholder="name@example.com"
-                className="flex-1 h-10 px-3 rounded-xl bg-inset border border-line text-[14px] outline-none focus:border-brand transition"
-              />
-              <Select
-                value={sharePermission}
-                onChange={(e) => setSharePermission(e.target.value as SharePermission)}
-                className="h-10 w-auto min-w-24"
-              >
-                <option value="view">צפייה</option>
-                <option value="edit">עריכה</option>
-              </Select>
-            </div>
-            <Button
-              fullWidth
-              variant="secondary"
-              disabled={!/^\S+@\S+\.\S+$/.test(shareEmail)}
-              onClick={() => {
-                addShare({
-                  tripId: trip.id,
-                  name: shareEmail.split('@')[0],
-                  email: shareEmail.trim(),
-                  permission: sharePermission,
-                  status: 'pending',
-                });
-                setShareEmail('');
-                toast.success('ההזמנה נשמרה');
-              }}
-            >
-              <Share2 className="size-4" />
-              הזמנה לטיול
-            </Button>
-            <p className="text-[11.5px] text-faint leading-relaxed">
-              בגרסה הנוכחית הנתונים נשמרים במכשיר, כך שההזמנות נשמרות ברשימה ומוכנות לשליחה ברגע
-              שיחובר שרת. אפשר בינתיים לשתף באמצעות ייצוא קובץ גיבוי.
-            </p>
-          </div>
-        </Card>
-      </section>
+                <Share2 className="size-4" />
+                התחברות כדי לשתף
+              </Button>
+            )}
+          </Card>
+        </section>
+      )}
 
       {/* ---------------- app ---------------- */}
       <section className="mb-5">
@@ -466,8 +398,9 @@ export function SettingsScreen() {
         <SectionTitle>נתונים</SectionTitle>
         <Card className="p-4 space-y-2.5">
           <p className="text-[12.5px] text-muted leading-relaxed">
-            כל נתוני הטיול נשמרים בדפדפן של המכשיר הזה בלבד ולא נשלחים לשום מקום. כדאי לייצא גיבוי
-            לפני נסיעה, ולייבא אותו במכשיר נוסף.
+            {cloudReady
+              ? 'הטיולים שלך שמורים בחשבון ומסונכרנים בין המכשירים. עותק נשמר גם במכשיר הזה כדי שהאפליקציה תעבוד גם בלי רשת.'
+              : 'כל נתוני הטיול נשמרים בדפדפן של המכשיר הזה בלבד ולא נשלחים לשום מקום. כדאי לייצא גיבוי לפני נסיעה, ולייבא אותו במכשיר נוסף.'}
           </p>
           <div className="grid grid-cols-2 gap-2.5">
             <Button variant="secondary" onClick={doExport}>
@@ -479,20 +412,31 @@ export function SettingsScreen() {
               ייבוא גיבוי
             </Button>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Button variant="ghost" onClick={() => setConfirmReset(true)}>
-              <RotateCcw className="size-4" />
-              איפוס לטיול הדגמה
-            </Button>
-            <Button
-              variant="ghost"
-              className="text-danger hover:bg-danger-soft"
-              onClick={() => setConfirmClear(true)}
-            >
-              <Trash2 className="size-4" />
-              מחיקת הכל
-            </Button>
-          </div>
+
+          {/* Reset and wipe only make sense for device-local data. In cloud
+              mode they would either create demo rows in a shared account or
+              look like they deleted everyone's trip. */}
+          {cloudReady ? (
+            <p className="text-[11.5px] text-faint leading-relaxed pt-1">
+              למחיקת טיול מהחשבון — פותחים את ״הטיולים שלי״ ומוחקים אותו משם. המחיקה משפיעה על
+              כל מי שמשתתף בטיול.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2.5">
+              <Button variant="ghost" onClick={() => setConfirmReset(true)}>
+                <RotateCcw className="size-4" />
+                איפוס לטיול הדגמה
+              </Button>
+              <Button
+                variant="ghost"
+                className="text-danger hover:bg-danger-soft"
+                onClick={() => setConfirmClear(true)}
+              >
+                <Trash2 className="size-4" />
+                מחיקת הכל
+              </Button>
+            </div>
+          )}
         </Card>
       </section>
 

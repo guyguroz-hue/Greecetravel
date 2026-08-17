@@ -16,7 +16,8 @@ import { AppShell } from '@/components/layout/AppShell';
 import { useActiveTrip } from '@/lib/store/hooks';
 import { useTripStore } from '@/lib/store/trip-store';
 import { toast } from '@/lib/store/ui-store';
-import { createObjectUrl, getBlob, putBlob, revokeObjectUrl } from '@/lib/db';
+import { revokeObjectUrl } from '@/lib/db';
+import { isRemoteKey, resolveFileUrl, storeFile } from '@/lib/services/documents';
 import {
   DOCUMENT_CATEGORIES,
   DOCUMENT_CATEGORY_META,
@@ -25,7 +26,6 @@ import {
 } from '@/lib/types';
 import { formatShortDate, todayISO } from '@/lib/utils/date';
 import { formatFileSize, safeExternalUrl } from '@/lib/utils/format';
-import { newId } from '@/lib/utils/id';
 import { cn } from '@/lib/utils/cn';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -71,16 +71,15 @@ export function DocumentsScreen() {
         continue;
       }
       try {
-        const key = newId('blob');
-        await putBlob(key, file);
+        // Goes to Supabase Storage in cloud mode and to IndexedDB otherwise,
+        // so a shared trip's paperwork is shared too.
+        const stored = await storeFile(trip.id, file);
         addDocument({
           tripId: trip.id,
           name: file.name,
           category: guessCategory(file.name),
           date: todayISO(),
-          fileKey: key,
-          mimeType: file.type || 'application/octet-stream',
-          size: file.size,
+          ...stored,
         });
         added++;
       } catch (err) {
@@ -266,19 +265,23 @@ function DocumentCard({
 
   const openFile = async () => {
     if (!doc.fileKey) return;
-    if (blobUrl) {
+    // A signed cloud URL is short-lived, so it is fetched fresh each time.
+    if (blobUrl && !isRemoteKey(doc.fileKey)) {
       window.open(blobUrl, '_blank', 'noopener');
       return;
     }
     setLoading(true);
-    const blob = await getBlob(doc.fileKey);
+    const url = await resolveFileUrl(doc.fileKey);
     setLoading(false);
-    if (!blob) {
-      toast.error('הקובץ לא נמצא במכשיר. ייתכן שנמחק מהדפדפן.');
+    if (!url) {
+      toast.error(
+        isRemoteKey(doc.fileKey)
+          ? 'לא הצלחנו לפתוח את הקובץ. ייתכן שאין חיבור לאינטרנט.'
+          : 'הקובץ שמור במכשיר אחר. צריך להעלות אותו שוב כדי שכולם יראו אותו.'
+      );
       return;
     }
-    const url = createObjectUrl(blob);
-    setBlobUrl(url);
+    if (!isRemoteKey(doc.fileKey)) setBlobUrl(url);
     window.open(url, '_blank', 'noopener');
   };
 

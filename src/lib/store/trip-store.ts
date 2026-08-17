@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { repository, deleteBlob } from '@/lib/db';
+import { deleteBlob, getLocalRepository, getRepository, getStorageMode } from '@/lib/db';
 import { GREECE_DEMO } from '@/lib/seed/greece';
 import {
   EMPTY_DATA,
@@ -38,9 +38,17 @@ interface TripState {
   activeTripId: ID | null;
   status: Status;
   error: string | null;
+  /** Set while cloud writes are failing; the app keeps working meanwhile. */
+  syncError: string | null;
   undoStack: UndoEntry[];
 
   hydrate: () => Promise<void>;
+  /** Re-reads everything after the storage backend changes (sign in/out). */
+  rehydrate: () => Promise<void>;
+  /** Replaces in-memory state with rows pushed from another device. */
+  applyRemote: (data: TripData) => void;
+  /** Copies the trips held on this device into the signed-in account. */
+  uploadLocalTripsToCloud: () => Promise<{ ok: boolean; message: string }>;
   persist: () => void;
   setActiveTrip: (id: ID | null) => void;
   undo: () => string | null;
@@ -147,10 +155,23 @@ export const useTripStore = create<TripState>()((set, get) => {
     if (typeof window === 'undefined') return;
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
-      repository.save(get().data).catch((err) => {
-        console.error('[store] persist failed', err);
-        set({ error: 'שמירת הנתונים נכשלה — ייתכן שנגמר מקום האחסון בדפדפן.' });
-      });
+      getRepository()
+        .save(get().data)
+        .then(() => {
+          if (get().syncError) set({ syncError: null });
+        })
+        .catch((err) => {
+          console.error('[store] persist failed', err);
+          if (getStorageMode() === 'cloud') {
+            // The change is safe locally and will be replayed on the next
+            // successful save, so this is a status line rather than an error.
+            set({
+              syncError: 'אין חיבור לשרת — השינויים נשמרו במכשיר ויסונכרנו כשהחיבור יחזור.',
+            });
+          } else {
+            set({ error: 'שמירת הנתונים נכשלה — ייתכן שנגמר מקום האחסון בדפדפן.' });
+          }
+        });
     }, 220);
   };
 
@@ -181,13 +202,16 @@ export const useTripStore = create<TripState>()((set, get) => {
     activeTripId: null,
     status: 'idle',
     error: null,
+    syncError: null,
     undoStack: [],
 
     async hydrate() {
       if (get().status === 'loading') return;
       set({ status: 'loading' });
+      const repo = getRepository();
       try {
-        const stored = await repository.load();
+        const stored = await repo.load();
+
         if (stored && stored.trips.length > 0) {
           const savedActive =
             typeof window !== 'undefined' ? window.localStorage.getItem('mtp:activeTrip') : null;
@@ -195,17 +219,108 @@ export const useTripStore = create<TripState>()((set, get) => {
             savedActive && stored.trips.some((t) => t.id === savedActive)
               ? savedActive
               : stored.trips[0].id;
-          set({ data: stored, activeTripId: active, status: 'ready' });
-        } else {
-          // First run — ship the demo trip so nothing is ever an empty shell.
-          const seeded = snapshot(GREECE_DEMO);
-          await repository.save(seeded);
-          set({ data: seeded, activeTripId: seeded.trips[0].id, status: 'ready' });
+          set({ data: stored, activeTripId: active, status: 'ready', syncError: null });
+          return;
         }
+
+        // Only a repository that has never stored anything gets the demo. An
+        // account with no trips yet, or a user who deleted their last trip,
+        // should see an empty list rather than have the demo reappear.
+        if (stored === null && repo.seedsDemoWhenEmpty !== false) {
+          const seeded = snapshot(GREECE_DEMO);
+          await repo.save(seeded);
+          set({ data: seeded, activeTripId: seeded.trips[0].id, status: 'ready' });
+          return;
+        }
+
+        set({
+          data: stored ?? EMPTY_DATA,
+          activeTripId: null,
+          status: 'ready',
+          syncError: null,
+        });
       } catch (err) {
         console.error('[store] hydrate failed', err);
         set({ status: 'error', error: 'טעינת הנתונים נכשלה.' });
       }
+    },
+
+    async rehydrate() {
+      // Called when the storage backend changes under us (sign in, sign out).
+      // Reset to idle first so `hydrate`'s in-flight guard doesn't skip it.
+      set({ status: 'idle', data: EMPTY_DATA, activeTripId: null, undoStack: [] });
+      await get().hydrate();
+    },
+
+    applyRemote(data) {
+      set((state) => {
+        // Keep the open trip open if it still exists after the remote change.
+        const activeStillThere =
+          state.activeTripId && data.trips.some((t) => t.id === state.activeTripId);
+        return {
+          data,
+          activeTripId: activeStillThere ? state.activeTripId : (data.trips[0]?.id ?? null),
+          syncError: null,
+        };
+      });
+    },
+
+    async uploadLocalTripsToCloud() {
+      if (getStorageMode() !== 'cloud') {
+        return { ok: false, message: 'צריך להיות מחוברים לחשבון כדי להעלות לענן.' };
+      }
+
+      const local = await getLocalRepository().load();
+      if (!local || local.trips.length === 0) {
+        return { ok: false, message: 'אין טיולים שמורים במכשיר הזה.' };
+      }
+
+      const current = get().data;
+      const existing = new Set(current.trips.map((t) => t.id));
+      const newTrips = local.trips.filter((t) => !existing.has(t.id));
+      if (newTrips.length === 0) {
+        return { ok: false, message: 'כל הטיולים שבמכשיר כבר נמצאים בחשבון.' };
+      }
+
+      const newTripIds = new Set(newTrips.map((t) => t.id));
+      const belongs = <T extends { tripId: ID }>(rows: T[]) =>
+        rows.filter((r) => newTripIds.has(r.tripId));
+
+      const merged: TripData = {
+        trips: [...current.trips, ...newTrips],
+        travelers: [...current.travelers, ...belongs(local.travelers)],
+        days: [...current.days, ...belongs(local.days)],
+        activities: [...current.activities, ...belongs(local.activities)],
+        hotels: [...current.hotels, ...belongs(local.hotels)],
+        flights: [...current.flights, ...belongs(local.flights)],
+        cars: [...current.cars, ...belongs(local.cars)],
+        places: [...current.places, ...belongs(local.places)],
+        expenses: [...current.expenses, ...belongs(local.expenses)],
+        // Uploaded documents keep their metadata; the files themselves stay on
+        // this device until they are re-uploaded, so the link is dropped.
+        documents: [...current.documents, ...belongs(local.documents).map((d) => ({
+          ...d,
+          fileKey: undefined,
+        }))],
+        checklists: [...current.checklists, ...belongs(local.checklists)],
+        shares: current.shares,
+      };
+
+      try {
+        await getRepository().save(merged);
+      } catch (err) {
+        console.error('[store] upload failed', err);
+        return { ok: false, message: 'ההעלאה נכשלה. אפשר לנסות שוב.' };
+      }
+
+      set({ data: merged, activeTripId: newTrips[0].id, undoStack: [], syncError: null });
+      return {
+        ok: true,
+        message:
+          newTrips.length === 1
+            ? `"${newTrips[0].name}" הועלה לחשבון`
+            : `${newTrips.length} טיולים הועלו לחשבון`,
+      };
     },
 
     persist: schedulePersist,
@@ -233,7 +348,7 @@ export const useTripStore = create<TripState>()((set, get) => {
 
     async resetToDemo() {
       const seeded = snapshot(GREECE_DEMO);
-      await repository.save(seeded);
+      await getRepository().save(seeded);
       set({ data: seeded, activeTripId: seeded.trips[0].id, undoStack: [], error: null });
       if (typeof window !== 'undefined') {
         window.localStorage.setItem('mtp:activeTrip', seeded.trips[0].id);
@@ -241,7 +356,7 @@ export const useTripStore = create<TripState>()((set, get) => {
     },
 
     async clearAll() {
-      await repository.clear();
+      await getRepository().clear();
       set({ data: EMPTY_DATA, activeTripId: null, undoStack: [], error: null });
       if (typeof window !== 'undefined') window.localStorage.removeItem('mtp:activeTrip');
     },

@@ -10,7 +10,7 @@ import {
   type Hotel,
   type TripDocument,
 } from '@/lib/types';
-import { createObjectUrl, getBlob } from '@/lib/db';
+import { resolveFileUrl } from '@/lib/services/documents';
 import { toast } from '@/lib/store/ui-store';
 import { safeExternalUrl } from '@/lib/utils/format';
 import { Spinner } from '@/components/ui/Feedback';
@@ -68,13 +68,13 @@ function DocumentChip({ doc }: { doc: TripDocument }) {
       return;
     }
     setLoading(true);
-    const blob = await getBlob(doc.fileKey);
+    const url = await resolveFileUrl(doc.fileKey);
     setLoading(false);
-    if (!blob) {
-      toast.error('הקובץ לא נמצא במכשיר');
+    if (!url) {
+      toast.error('לא הצלחנו לפתוח את הקובץ');
       return;
     }
-    window.open(createObjectUrl(blob), '_blank', 'noopener');
+    window.open(url, '_blank', 'noopener');
   };
 
   return (
