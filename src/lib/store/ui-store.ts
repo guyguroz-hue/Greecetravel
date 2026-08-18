@@ -97,7 +97,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   theme: 'system',
   liveRouting: false,
   liveRates: false,
-  onlineSearch: false,
+  onlineSearch: true,
   showConversions: true,
   hydrated: false,
 

@@ -10,11 +10,6 @@ import { EMPTY_DATA, type TripData } from '@/lib/types';
  */
 export interface TripRepository {
   readonly id: string;
-  /**
-   * Whether an empty result means "first run, show the demo trip". True for
-   * local storage; false for an account that genuinely has no trips yet.
-   */
-  readonly seedsDemoWhenEmpty?: boolean;
   load(): Promise<TripData | null>;
   save(data: TripData): Promise<void>;
   clear(): Promise<void>;
@@ -24,7 +19,6 @@ const STORAGE_KEY = 'mtp:data:v1';
 
 export class LocalStorageRepository implements TripRepository {
   readonly id = 'localStorage';
-  readonly seedsDemoWhenEmpty = true;
 
   async load(): Promise<TripData | null> {
     if (typeof window === 'undefined') return null;
@@ -62,7 +56,6 @@ export class LocalStorageRepository implements TripRepository {
 /** In-memory stand-in used during SSR and in tests. */
 export class MemoryRepository implements TripRepository {
   readonly id = 'memory';
-  readonly seedsDemoWhenEmpty = true;
   private data: TripData | null = null;
 
   async load() {

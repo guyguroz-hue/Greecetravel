@@ -78,7 +78,6 @@ const CACHE_KEY = 'mtp:cloud-cache:v1';
  */
 export class SupabaseRepository implements TripRepository {
   readonly id = 'supabase';
-  readonly seedsDemoWhenEmpty = false;
 
   /** The last state known to match the server. */
   private synced: TripData | null = null;

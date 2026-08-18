@@ -28,9 +28,8 @@ import { EmptyState, Spinner } from '@/components/ui/Feedback';
 import { Badge } from '@/components/ui/Bits';
 
 /**
- * "יקב ליד מטסובו" → results from the offline catalogue, plus OpenStreetMap
- * when online search is switched on. Each result can go straight onto a day
- * or into the wishlist.
+ * "יקב ליד מטסובו" → results from OpenStreetMap, biased towards the trip's
+ * location. Each result can go straight onto a day or into the wishlist.
  */
 export function SearchScreen() {
   const active = useActiveTrip();
@@ -153,14 +152,14 @@ export function SearchScreen() {
 
       {!onlineSearch && (
         <p className="text-[12px] text-muted bg-inset rounded-xl px-3 py-2.5 mb-4 leading-relaxed">
-          החיפוש פועל כרגע מול קטלוג מקומי שעובד גם בלי אינטרנט. אפשר להפעיל חיפוש מקוון
-          (OpenStreetMap) בהגדרות.
+          חיפוש המקומות כבוי בהגדרות, ולכן אין מה לחפש. אפשר להדליק אותו תחת הגדרות →
+          ״חיפוש מקומות מקוון״, או להוסיף מקום ידנית.
         </p>
       )}
       {onlineFailed && (
         <p className="flex items-center gap-2 text-[12px] text-warning bg-warning-soft rounded-xl px-3 py-2.5 mb-4">
           <WifiOff className="size-3.5 shrink-0" />
-          החיפוש המקוון לא זמין כרגע — מוצגות רק תוצאות מהקטלוג המקומי.
+          החיפוש לא זמין כרגע. אפשר לנסות שוב, או להוסיף את המקום ידנית.
         </p>
       )}
 

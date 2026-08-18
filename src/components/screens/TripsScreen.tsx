@@ -84,8 +84,8 @@ export function TripsScreen() {
         {trips.length === 0 ? (
           <EmptyState
             icon="🧳"
-            title="בואי נתחיל לתכנן"
-            description="צרי את הטיול הראשון שלך — מסלול, מלונות, טיסות ותקציב, הכל במקום אחד."
+            title="בואו נתחיל לתכנן"
+            description="כאן ייווצר הטיול הראשון — מסלול, מלונות, טיסות ותקציב, הכל במקום אחד."
             action={
               <Button onClick={() => router.push('/new')}>
                 <Plus className="size-4" />

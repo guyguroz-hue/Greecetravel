@@ -9,7 +9,6 @@ import {
   Moon,
   Pencil,
   RefreshCw,
-  RotateCcw,
   Share2,
   Sun,
   Trash2,
@@ -46,14 +45,12 @@ export function SettingsScreen() {
   const removeTraveler = useTripStore((s) => s.removeTraveler);
   const exportData = useTripStore((s) => s.exportData);
   const importData = useTripStore((s) => s.importData);
-  const resetToDemo = useTripStore((s) => s.resetToDemo);
   const clearAll = useTripStore((s) => s.clearAll);
 
   const settings = useSettingsStore();
 
   const [tripSheet, setTripSheet] = useState(false);
   const [travelerName, setTravelerName] = useState('');
-  const [confirmReset, setConfirmReset] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -387,7 +384,7 @@ export function SettingsScreen() {
               checked={settings.onlineSearch}
               onChange={settings.setOnlineSearch}
               label="חיפוש מקומות מקוון"
-              description="מוסיף תוצאות מ-OpenStreetMap לחיפוש. דורש אינטרנט."
+              description="מחפש מקומות ב-OpenStreetMap. בלי זה מסך החיפוש לא יחזיר תוצאות."
             />
           </div>
         </Card>
@@ -413,48 +410,29 @@ export function SettingsScreen() {
             </Button>
           </div>
 
-          {/* Reset and wipe only make sense for device-local data. In cloud
-              mode they would either create demo rows in a shared account or
-              look like they deleted everyone's trip. */}
+          {/* Wiping only makes sense for device-local data — in cloud mode it
+              would look like it deleted everyone's trip. */}
           {cloudReady ? (
             <p className="text-[11.5px] text-faint leading-relaxed pt-1">
               למחיקת טיול מהחשבון — פותחים את ״הטיולים שלי״ ומוחקים אותו משם. המחיקה משפיעה על
               כל מי שמשתתף בטיול.
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5">
-              <Button variant="ghost" onClick={() => setConfirmReset(true)}>
-                <RotateCcw className="size-4" />
-                איפוס לטיול הדגמה
-              </Button>
-              <Button
-                variant="ghost"
-                className="text-danger hover:bg-danger-soft"
-                onClick={() => setConfirmClear(true)}
-              >
-                <Trash2 className="size-4" />
-                מחיקת הכל
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              fullWidth
+              className="text-danger hover:bg-danger-soft"
+              onClick={() => setConfirmClear(true)}
+            >
+              <Trash2 className="size-4" />
+              מחיקת הכל
+            </Button>
           )}
         </Card>
       </section>
 
       {/* ---------------- trip edit sheet ---------------- */}
       <TripSheet key={String(tripSheet)} open={tripSheet} onClose={() => setTripSheet(false)} />
-
-      <ConfirmDialog
-        open={confirmReset}
-        title="לאפס לטיול ההדגמה?"
-        message="כל השינויים שביצעת יוחלפו בטיול הדגמה של צפון יוון. פעולה זו אינה ניתנת לביטול."
-        confirmLabel="איפוס"
-        onCancel={() => setConfirmReset(false)}
-        onConfirm={() => {
-          void resetToDemo();
-          setConfirmReset(false);
-          toast.success('הנתונים אופסו לטיול ההדגמה');
-        }}
-      />
 
       <ConfirmDialog
         open={confirmClear}

@@ -2,7 +2,6 @@
 
 import { create } from 'zustand';
 import { deleteBlob, getLocalRepository, getRepository, getStorageMode } from '@/lib/db';
-import { GREECE_DEMO } from '@/lib/seed/greece';
 import {
   EMPTY_DATA,
   type Activity,
@@ -53,7 +52,6 @@ interface TripState {
   setActiveTrip: (id: ID | null) => void;
   undo: () => string | null;
   canUndo: () => boolean;
-  resetToDemo: () => Promise<void>;
   clearAll: () => Promise<void>;
   importData: (raw: string) => { ok: boolean; message: string };
   exportData: () => string;
@@ -223,16 +221,6 @@ export const useTripStore = create<TripState>()((set, get) => {
           return;
         }
 
-        // Only a repository that has never stored anything gets the demo. An
-        // account with no trips yet, or a user who deleted their last trip,
-        // should see an empty list rather than have the demo reappear.
-        if (stored === null && repo.seedsDemoWhenEmpty !== false) {
-          const seeded = snapshot(GREECE_DEMO);
-          await repo.save(seeded);
-          set({ data: seeded, activeTripId: seeded.trips[0].id, status: 'ready' });
-          return;
-        }
-
         set({
           data: stored ?? EMPTY_DATA,
           activeTripId: null,
@@ -348,15 +336,6 @@ export const useTripStore = create<TripState>()((set, get) => {
       set({ data: last.snapshot, undoStack: stack.slice(0, -1) });
       schedulePersist();
       return last.label;
-    },
-
-    async resetToDemo() {
-      const seeded = snapshot(GREECE_DEMO);
-      await getRepository().save(seeded);
-      set({ data: seeded, activeTripId: seeded.trips[0].id, undoStack: [], error: null });
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('mtp:activeTrip', seeded.trips[0].id);
-      }
     },
 
     async clearAll() {
