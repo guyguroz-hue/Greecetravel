@@ -77,7 +77,7 @@ export function CarScreen() {
       {/* driving summary from the itinerary itself */}
       <section className="mb-5">
         <SectionTitle>נסיעה משוערת לפי המסלול</SectionTitle>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-px bg-line rounded-2xl overflow-hidden border border-line shadow-card">
           <Stat
             icon={<Timer className="size-3.5" />}
             label="זמן נהיגה"

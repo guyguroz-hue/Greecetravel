@@ -119,7 +119,7 @@ export function ProgressBar({
 
   return (
     <div
-      className={cn('h-2 w-full rounded-full bg-subtle overflow-hidden flex [direction:ltr]', className)}
+      className={cn('h-1.5 w-full rounded-full bg-subtle overflow-hidden flex [direction:ltr]', className)}
       role="progressbar"
       aria-valuenow={Math.round(pct)}
       aria-valuemin={0}

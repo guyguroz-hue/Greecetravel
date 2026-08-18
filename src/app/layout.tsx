@@ -1,6 +1,22 @@
 import type { Metadata, Viewport } from 'next';
+import { Assistant } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/layout/Providers';
+
+/**
+ * One family across the app, carrying its light weights: the design leans on
+ * 200–300 at large sizes for headings and figures, which is where Assistant
+ * stops looking like a UI font and starts looking like a printed one. Loaded
+ * through next/font so the files are served from our own origin — the app used
+ * to name fonts it never actually fetched and silently rendered in whatever
+ * the device had.
+ */
+const assistant = Assistant({
+  subsets: ['hebrew', 'latin'],
+  weight: ['200', '300', '400', '500', '600', '700'],
+  variable: '--font-assistant',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'My Trip Planner',
@@ -21,8 +37,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f6f7f9' },
-    { media: '(prefers-color-scheme: dark)', color: '#0c0f16' },
+    { media: '(prefers-color-scheme: light)', color: '#f8f6f1' },
+    { media: '(prefers-color-scheme: dark)', color: '#100f12' },
   ],
 };
 
@@ -41,7 +57,7 @@ try {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" suppressHydrationWarning>
+    <html lang="he" dir="rtl" className={assistant.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>

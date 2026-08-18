@@ -18,13 +18,20 @@ export const COVER_PRESETS = [
 
 export type CoverKey = (typeof COVER_PRESETS)[number]['key'];
 
+/**
+ * Each cover is a deep base with a warm low sun burnt into one corner. The
+ * light-weight display type sits on these, so they run dark and let the sand
+ * glow supply the warmth rather than lightening the whole field.
+ */
+const SUN = 'radial-gradient(120% 90% at 78% 8%, #f2d89e 0%, rgba(242,216,158,0) 52%)';
+
 const GRADIENTS: Record<string, string> = {
-  greece: 'linear-gradient(135deg,#1e63c9 0%,#2b8fd6 45%,#7ec8e3 100%)',
-  coast: 'linear-gradient(135deg,#0a7ea4 0%,#12a4a4 50%,#7fd6c0 100%)',
-  mountain: 'linear-gradient(135deg,#2f4858 0%,#33658a 55%,#86bbd8 100%)',
-  city: 'linear-gradient(135deg,#3a2f5b 0%,#6a4c93 55%,#c56cb0 100%)',
-  desert: 'linear-gradient(135deg,#a14b1d 0%,#db8629 55%,#eabd66 100%)',
-  tropic: 'linear-gradient(135deg,#0b6e4f 0%,#11916b 50%,#8ed99f 100%)',
+  greece: `${SUN}, linear-gradient(168deg,#1d67f0 0%,#1a3c8c 46%,#142655 100%)`,
+  coast: `${SUN}, linear-gradient(168deg,#0f8fae 0%,#0d5f7f 48%,#0a3348 100%)`,
+  mountain: `${SUN}, linear-gradient(168deg,#42678a 0%,#2f4858 50%,#1a2733 100%)`,
+  city: `${SUN}, linear-gradient(168deg,#6a4c93 0%,#3f2f66 50%,#221a38 100%)`,
+  desert: `${SUN}, linear-gradient(168deg,#db8629 0%,#a14b1d 50%,#5c2a12 100%)`,
+  tropic: `${SUN}, linear-gradient(168deg,#11916b 0%,#0b6e4f 50%,#053626 100%)`,
 };
 
 function Scene({ variant }: { variant: string }) {
@@ -78,24 +85,20 @@ function Scene({ variant }: { variant: string }) {
       );
     case 'greece':
     default:
+      // Layered headlands rather than buildings: the horizon reads at any
+      // height, and stays calm behind a long trip name.
       return (
         <>
-          <circle cx="332" cy="44" r="18" fill="#fff" opacity="0.45" />
-          {/* whitewashed houses with domes */}
-          <g fill="#fff" opacity="0.22">
-            <rect x="42" y="118" width="54" height="62" rx="4" />
-            <rect x="104" y="132" width="42" height="48" rx="4" />
-            <rect x="238" y="126" width="48" height="54" rx="4" />
-            <rect x="296" y="140" width="38" height="40" rx="4" />
-          </g>
-          <g fill="#fff" opacity="0.38">
-            <path d="M156 130 a30 26 0 0 1 60 0 z" />
-            <rect x="182" y="104" width="4" height="16" rx="2" />
-            <rect x="156" y="130" width="60" height="50" rx="3" />
-          </g>
-          {/* sea */}
-          <path d="M0 158 Q70 146 140 156 T280 154 T400 162 V180 H0Z" fill="#fff" opacity="0.16" />
-          <path d="M0 170 Q90 160 180 170 T400 172 V180 H0Z" fill="#fff" opacity="0.24" />
+          <path
+            d="M0 116 C 62 96 94 108 136 96 C 184 82 208 104 254 92 C 302 80 346 100 400 90 L400 180 L0 180Z"
+            fill="#0f2149"
+            opacity="0.5"
+          />
+          <path
+            d="M0 140 C 68 124 114 136 162 124 C 220 110 260 130 306 122 C 348 114 376 126 400 122 L400 180 L0 180Z"
+            fill="#0a1631"
+            opacity="0.66"
+          />
         </>
       );
   }
@@ -128,7 +131,10 @@ export function CoverImage({
       </svg>
       <div
         className="absolute inset-0"
-        style={{ background: 'linear-gradient(to top, rgb(0 0 0 / 0.55), transparent 62%)' }}
+        style={{
+          background:
+            'linear-gradient(to top, rgb(8 14 30 / 0.72) 0%, rgb(8 14 30 / 0.28) 38%, transparent 70%)',
+        }}
         aria-hidden
       />
       {children && <div className="relative">{children}</div>}

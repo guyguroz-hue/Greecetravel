@@ -56,8 +56,8 @@ export function SectionTitle({
   className?: string;
 }) {
   return (
-    <div className={cn('flex items-center justify-between gap-3 mb-2.5 px-0.5', className)}>
-      <h2 className="text-[13px] font-semibold text-muted tracking-wide">{children}</h2>
+    <div className={cn('flex items-center justify-between gap-3 mb-3 px-0.5', className)}>
+      <h2 className="text-[11.5px] font-normal text-muted tracking-[0.2em]">{children}</h2>
       {action}
     </div>
   );
@@ -85,15 +85,15 @@ export function Stat({
     danger: 'text-danger',
   }[tone];
   return (
-    <div className={cn('bg-surface border border-line rounded-2xl p-3.5 shadow-card', className)}>
-      <div className="flex items-center gap-1.5 text-muted text-[12px] font-medium">
+    <div className={cn('h-full bg-surface px-4 py-4', className)}>
+      <div className="flex items-center gap-1.5 text-muted text-[11.5px] tracking-[0.04em]">
         {icon}
         <span className="truncate">{label}</span>
       </div>
-      <div className={cn('mt-1.5 text-xl font-semibold ltr-nums text-start', toneClass)}>
+      <div className={cn('mt-2 text-[23px] font-extralight leading-none ltr-nums text-start', toneClass)}>
         {value}
       </div>
-      {hint && <div className="text-[12px] text-faint mt-0.5 truncate">{hint}</div>}
+      {hint && <div className="text-[11.5px] font-light text-faint mt-2 truncate">{hint}</div>}
     </div>
   );
 }

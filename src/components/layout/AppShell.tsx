@@ -233,14 +233,13 @@ function MobileTabBar() {
               aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex-1 flex flex-col items-center justify-center gap-0.5 h-[3.75rem] transition relative',
-                active ? 'text-brand' : 'text-faint'
+                active ? 'text-accent' : 'text-faint'
               )}
             >
-              {active && (
-                <span className="absolute top-0 h-0.5 w-9 rounded-full bg-brand" aria-hidden />
-              )}
-              <Icon className={cn('size-[21px]', active && 'stroke-[2.3]')} />
-              <span className="text-[10.5px] font-medium">{item.label}</span>
+              <Icon className={cn('size-[21px]', active ? 'stroke-[1.8]' : 'stroke-[1.5]')} />
+              <span className={cn('text-[10.5px] tracking-[0.02em]', active ? 'font-semibold' : 'font-light')}>
+                {item.label}
+              </span>
             </Link>
           );
         })}

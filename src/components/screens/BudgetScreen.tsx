@@ -174,7 +174,7 @@ export function BudgetScreen() {
             )}
           </Card>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-px bg-line rounded-2xl overflow-hidden border border-line shadow-card">
             <Stat
               icon={<Wallet className="size-3.5" />}
               label="עלות לאדם"

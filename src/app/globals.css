@@ -3,12 +3,14 @@
 /* ------------------------------------------------------------------ *
  * Design tokens
  * A calm, premium "Aegean" palette: deep sea blue + warm sand.
+ * The neutrals are warm on purpose — a warm sand accent on cool grey neutrals
+ * reads as a mistake rather than as a choice.
  * Every colour is defined once on :root, then re-declared for dark.
  * ------------------------------------------------------------------ */
 @theme {
   --font-sans:
-    'Rubik', 'Heebo', system-ui, -apple-system, 'Segoe UI', 'Noto Sans Hebrew', 'Assistant', Arial,
-    sans-serif;
+    var(--font-assistant), 'Assistant', system-ui, -apple-system, 'Segoe UI',
+    'Noto Sans Hebrew', Arial, sans-serif;
 
   --color-sea-50: #eef6ff;
   --color-sea-100: #d9ecff;
@@ -80,15 +82,15 @@
  * Semantic surface tokens
  * ------------------------------------------------------------------ */
 :root {
-  --bg: #f6f7f9;
+  --bg: #f8f6f1;
   --bg-elevated: #ffffff;
-  --bg-subtle: #eef0f4;
-  --bg-inset: #f9fafb;
-  --border: #e3e6ec;
-  --border-strong: #cdd3dd;
-  --text: #131722;
-  --text-muted: #667085;
-  --text-faint: #98a2b3;
+  --bg-subtle: #f1ece3;
+  --bg-inset: #faf8f4;
+  --border: #eae5dc;
+  --border-strong: #d5cec1;
+  --text: #17161c;
+  --text-muted: #6b6672;
+  --text-faint: #a5a0aa;
   --brand: #1651dc;
   --brand-contrast: #ffffff;
   --brand-soft: #e7effe;
@@ -107,15 +109,15 @@
 }
 
 :root[data-theme='dark'] {
-  --bg: #0c0f16;
-  --bg-elevated: #151a24;
-  --bg-subtle: #1c2230;
-  --bg-inset: #11151d;
-  --border: #262d3c;
-  --border-strong: #37405280;
-  --text: #eef1f6;
-  --text-muted: #97a1b4;
-  --text-faint: #6b7688;
+  --bg: #100f12;
+  --bg-elevated: #191820;
+  --bg-subtle: #221f28;
+  --bg-inset: #141317;
+  --border: #272630;
+  --border-strong: #3a3844;
+  --text: #f2efe9;
+  --text-muted: #9b95a0;
+  --text-faint: #6f6a76;
   --brand: #6ba4ff;
   --brand-contrast: #08122b;
   --brand-soft: #16233d;

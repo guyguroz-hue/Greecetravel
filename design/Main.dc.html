@@ -7,103 +7,102 @@
 <body>
 <x-dc>
 <helmet>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Heebo:wght@300;400;500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@200;300;400;500;600&display=swap">
   <style>
     body { margin: 0; }
     a { color: #a14b1d; } a:hover { color: #833c1e; }
   </style>
 </helmet>
 
-<div dir="rtl" style="width: 412px; min-height: 900px; font-family: 'Heebo', system-ui, sans-serif; background: {{bg}}; color: {{ink}}; display: flex; flex-direction: column;">
+<div dir="rtl" style="width: 412px; min-height: 900px; font-family: 'Assistant', system-ui, sans-serif; background: {{bg}}; color: {{ink}}; display: flex; flex-direction: column;">
 
   <!-- header -->
-  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 28px 24px 18px;">
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 30px 24px 20px;">
     <div>
-      <div style="font-family: 'Frank Ruhl Libre', Georgia, serif; font-size: 27px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1;">הטיולים שלי</div>
-      <div style="font-size: 13px; color: {{muted}}; margin-top: 5px; font-weight: 300;">טיול אחד מתוכנן</div>
+      <div style="font-size: 11.5px; letter-spacing: 0.2em; color: {{muted}};">הטיולים שלי</div>
+      <div style="font-size: 15px; font-weight: 300; margin-top: 6px;">טיול אחד מתוכנן</div>
     </div>
     <div style="width: 44px; height: 44px; border-radius: 999px; border: 1px solid {{line}}; display: flex; align-items: center; justify-content: center; color: {{ink}};">
-      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
     </div>
   </div>
 
   <!-- the trip, as a full-bleed editorial plate -->
-  <div style="margin: 0 16px; border-radius: 22px; overflow: hidden; box-shadow: 0 18px 40px -18px rgba(20,38,85,0.45);">
+  <div style="margin: 0 16px; border-radius: 22px; overflow: hidden; box-shadow: 0 18px 40px -18px rgba(20,38,85,0.4);">
 
     <div style="position: relative; height: 300px; background:
         radial-gradient(120% 90% at 78% 8%, #f2d89e 0%, rgba(242,216,158,0) 52%),
         linear-gradient(168deg, #1d67f0 0%, #1a3c8c 46%, #142655 100%);">
 
-      <!-- horizon + hills, drawn rather than photographed -->
       <svg viewBox="0 0 412 300" width="412" height="300" style="position: absolute; inset: 0;" aria-hidden="true">
         <circle cx="322" cy="66" r="30" fill="#f9edd0" opacity="0.9"/>
         <path d="M0 214 C 64 176 96 196 140 178 C 190 158 214 190 262 172 C 312 154 356 182 412 166 L412 300 L0 300 Z" fill="#142655" opacity="0.42"/>
         <path d="M0 246 C 70 220 118 240 168 224 C 226 206 268 232 316 220 C 358 210 388 224 412 218 L412 300 L0 300 Z" fill="#0e1c3f" opacity="0.55"/>
       </svg>
 
-      <div style="position: absolute; inset-inline-start: 0; inset-inline-end: 0; bottom: 0; padding: 22px; display: flex; flex-direction: column; gap: 9px;">
-        <div style="display: flex; align-items: center; gap: 7px; color: #f2d89e; font-size: 11.5px; letter-spacing: 0.14em; font-weight: 500;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      <div style="position: absolute; inset-inline-start: 0; inset-inline-end: 0; bottom: 0; padding: 24px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 7px; color: #f2d89e; font-size: 11.5px; letter-spacing: 0.16em; font-weight: 400;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
           <span>סלוניקי · מטסובו · מטאורה</span>
         </div>
-        <div style="font-family: 'Frank Ruhl Libre', Georgia, serif; font-size: 40px; font-weight: 700; color: #fff; line-height: 1.02; letter-spacing: -0.02em;">צפון יוון</div>
-        <div style="font-size: 13.5px; color: rgba(255,255,255,0.78); font-weight: 300;">17 – 23 בספטמבר 2026</div>
+        <div style="font-size: 44px; font-weight: 200; color: #fff; line-height: 1.0; letter-spacing: -0.03em;">צפון יוון</div>
+        <div style="font-size: 14px; color: rgba(255,255,255,0.76); font-weight: 300;">17 – 23 בספטמבר 2026</div>
       </div>
 
-      <div style="position: absolute; top: 20px; inset-inline-end: 20px; background: rgba(255,255,255,0.16); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.24); color: #fff; font-size: 12px; font-weight: 500; padding: 7px 13px; border-radius: 999px;">בעוד 30 יום</div>
+      <div style="position: absolute; top: 20px; inset-inline-end: 20px; background: rgba(255,255,255,0.14); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.22); color: #fff; font-size: 12px; font-weight: 400; padding: 7px 13px; border-radius: 999px;">בעוד 30 יום</div>
     </div>
 
-    <!-- the figures, as a hairline-ruled row rather than four little boxes -->
-    <div style="background: {{card}}; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0;">
-      <div style="padding: 17px 14px; text-align: center;">
-        <div style="font-family: 'Frank Ruhl Libre', Georgia, serif; font-size: 22px; font-weight: 700;">7</div>
-        <div style="font-size: 11px; color: {{muted}}; margin-top: 3px; letter-spacing: 0.04em;">ימים</div>
+    <!-- figures, hairline-ruled -->
+    <div style="background: {{card}}; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));">
+      <div style="padding: 19px 14px; text-align: center;">
+        <div style="font-size: 27px; font-weight: 200; line-height: 1;">7</div>
+        <div style="font-size: 11px; color: {{muted}}; margin-top: 7px; letter-spacing: 0.06em;">ימים</div>
       </div>
-      <div style="padding: 17px 14px; text-align: center; border-inline-start: 1px solid {{line}}; border-inline-end: 1px solid {{line}};">
-        <div style="font-family: 'Frank Ruhl Libre', Georgia, serif; font-size: 22px; font-weight: 700;">3</div>
-        <div style="font-size: 11px; color: {{muted}}; margin-top: 3px; letter-spacing: 0.04em;">מטיילים</div>
+      <div style="padding: 19px 14px; text-align: center; border-inline-start: 1px solid {{line}}; border-inline-end: 1px solid {{line}};">
+        <div style="font-size: 27px; font-weight: 200; line-height: 1;">3</div>
+        <div style="font-size: 11px; color: {{muted}}; margin-top: 7px; letter-spacing: 0.06em;">מטיילים</div>
       </div>
-      <div style="padding: 17px 14px; text-align: center;">
-        <div style="font-family: 'Frank Ruhl Libre', Georgia, serif; font-size: 22px; font-weight: 700;">12</div>
-        <div style="font-size: 11px; color: {{muted}}; margin-top: 3px; letter-spacing: 0.04em;">פעילויות</div>
+      <div style="padding: 19px 14px; text-align: center;">
+        <div style="font-size: 27px; font-weight: 200; line-height: 1;">12</div>
+        <div style="font-size: 11px; color: {{muted}}; margin-top: 7px; letter-spacing: 0.06em;">פעילויות</div>
       </div>
     </div>
 
     <div style="background: {{card}}; padding: 0 20px 20px;">
       <div style="height: 1px; background: {{line}}; margin-bottom: 16px;"></div>
       <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
-        <div style="font-size: 12.5px; color: {{muted}}; font-weight: 300;">תקציב</div>
-        <div style="font-size: 13px; font-weight: 500;">₪8,120 <span style="color: {{muted}}; font-weight: 300;">מתוך ₪35,000</span></div>
+        <div style="font-size: 12.5px; color: {{muted}}; letter-spacing: 0.04em;">תקציב</div>
+        <div style="font-size: 14px; font-weight: 300;">₪8,120 <span style="color: {{muted}};">/ ₪35,000</span></div>
       </div>
-      <div style="height: 6px; border-radius: 999px; background: {{track}}; margin-top: 10px; overflow: hidden;">
+      <div style="height: 5px; border-radius: 999px; background: {{track}}; margin-top: 11px; overflow: hidden;">
         <div style="width: 23%; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #db8629, #e3a33f);"></div>
       </div>
     </div>
   </div>
 
   <!-- next up -->
-  <div style="padding: 26px 24px 16px;">
-    <div style="font-family: 'Frank Ruhl Libre', Georgia, serif; font-size: 17px; font-weight: 700; margin-bottom: 12px;">הדבר הבא</div>
+  <div style="padding: 30px 24px 16px;">
+    <div style="font-size: 11.5px; letter-spacing: 0.2em; color: {{muted}}; margin-bottom: 14px;">הדבר הבא</div>
     <div style="display: flex; flex-direction: column; gap: 10px;">
-      <div style="display: flex; align-items: center; gap: 13px; background: {{card}}; border: 1px solid {{line}}; border-radius: 16px; padding: 14px 16px;">
-        <div style="width: 42px; height: 42px; border-radius: 12px; background: {{sandSoft}}; color: #a14b1d; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5a2.1 2.1 0 0 0-3-3L13 8 4.8 6.2a.5.5 0 0 0-.5.8l3.6 4.6-2.1 2.1-2-.6a.5.5 0 0 0-.5.8L6 17l2.1 2.7a.5.5 0 0 0 .8-.5l-.6-2 2.1-2.1 4.6 3.6a.5.5 0 0 0 .8-.5Z"/></svg>
+      <div style="display: flex; align-items: center; gap: 13px; background: {{card}}; border: 1px solid {{line}}; border-radius: 16px; padding: 15px 16px;">
+        <div style="width: 42px; height: 42px; border-radius: 12px; background: {{sandSoft}}; color: {{sandInk}}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5a2.1 2.1 0 0 0-3-3L13 8 4.8 6.2a.5.5 0 0 0-.5.8l3.6 4.6-2.1 2.1-2-.6a.5.5 0 0 0-.5.8L6 17l2.1 2.7a.5.5 0 0 0 .8-.5l-.6-2 2.1-2.1 4.6 3.6a.5.5 0 0 0 .8-.5Z"/></svg>
         </div>
         <div style="flex-grow: 1; min-width: 0;">
-          <div style="font-size: 14.5px; font-weight: 500;">טיסה לסלוניקי</div>
-          <div style="font-size: 12px; color: {{muted}}; margin-top: 2px; font-weight: 300;">17.9 · 06:20 · נתב״ג</div>
+          <div style="font-size: 15px; font-weight: 400;">טיסה לסלוניקי</div>
+          <div style="font-size: 12.5px; color: {{muted}}; margin-top: 3px; font-weight: 300;">17.9 · 06:20 · נתב״ג</div>
         </div>
-        <div style="font-size: 12px; color: {{muted}}; font-weight: 300;">בעוד 30 יום</div>
+        <div style="font-size: 12px; color: {{faint}}; font-weight: 300;">בעוד 30 יום</div>
       </div>
-      <div style="display: flex; align-items: center; gap: 13px; background: {{card}}; border: 1px solid {{line}}; border-radius: 16px; padding: 14px 16px;">
+      <div style="display: flex; align-items: center; gap: 13px; background: {{card}}; border: 1px solid {{line}}; border-radius: 16px; padding: 15px 16px;">
         <div style="width: 42px; height: 42px; border-radius: 12px; background: {{brandSoft}}; color: {{brand}}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
         </div>
         <div style="flex-grow: 1; min-width: 0;">
-          <div style="font-size: 14.5px; font-weight: 500;">Aristi Mountain Resort</div>
-          <div style="font-size: 12px; color: {{muted}}; margin-top: 2px; font-weight: 300;">2 לילות · זגוריה</div>
+          <div style="font-size: 15px; font-weight: 400;">Aristi Mountain Resort</div>
+          <div style="font-size: 12.5px; color: {{muted}}; margin-top: 3px; font-weight: 300;">2 לילות · זגוריה</div>
         </div>
-        <div style="font-size: 12px; color: {{muted}}; font-weight: 300;">19.9</div>
+        <div style="font-size: 12px; color: {{faint}}; font-weight: 300;">19.9</div>
       </div>
     </div>
   </div>
@@ -112,25 +111,25 @@
 
   <!-- bottom nav -->
   <div style="border-top: 1px solid {{line}}; background: {{card}}; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px 6px 20px;">
-    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: {{navOn}};">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21H3z"/></svg>
-      <div style="font-size: 10.5px; font-weight: 500;">בית</div>
+    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: {{navOn}};">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21H3z"/></svg>
+      <div style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;">בית</div>
     </div>
-    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: {{navOff}};">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
-      <div style="font-size: 10.5px; font-weight: 400;">מסלול</div>
+    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: {{navOff}};">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+      <div style="font-size: 10.5px; font-weight: 300; letter-spacing: 0.02em;">מסלול</div>
     </div>
-    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: {{navOff}};">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m9 4-6 3v13l6-3 6 3 6-3V4l-6 3z"/><path d="M9 4v13M15 7v13"/></svg>
-      <div style="font-size: 10.5px; font-weight: 400;">מפה</div>
+    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: {{navOff}};">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 4-6 3v13l6-3 6 3 6-3V4l-6 3z"/><path d="M9 4v13M15 7v13"/></svg>
+      <div style="font-size: 10.5px; font-weight: 300; letter-spacing: 0.02em;">מפה</div>
     </div>
-    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: {{navOff}};">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="3"/><circle cx="12" cy="12.5" r="2.5"/></svg>
-      <div style="font-size: 10.5px; font-weight: 400;">תקציב</div>
+    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: {{navOff}};">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="3"/><circle cx="12" cy="12.5" r="2.5"/></svg>
+      <div style="font-size: 10.5px; font-weight: 300; letter-spacing: 0.02em;">תקציב</div>
     </div>
-    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: {{navOff}};">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
-      <div style="font-size: 10.5px; font-weight: 400;">עוד</div>
+    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: {{navOff}};">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+      <div style="font-size: 10.5px; font-weight: 300; letter-spacing: 0.02em;">עוד</div>
     </div>
   </div>
 </div>
@@ -140,18 +139,21 @@
 class Component extends DCLogic {
   renderVals() {
     const dark = this.props.dark ?? false;
+    const ink = dark ? '#f2efe9' : '#17161c';
     return {
-      navOn: dark ? '#f2d89e' : '#a14b1d',
-      navOff: dark ? '#6b7688' : '#98a2b3',
-      bg: dark ? '#0e1118' : '#f7f4ee',
-      card: dark ? '#161b25' : '#ffffff',
-      ink: dark ? '#eef1f6' : '#131722',
-      muted: dark ? '#97a1b4' : '#667085',
-      line: dark ? '#262d3c' : '#e9e4da',
-      track: dark ? '#1c2230' : '#f0ece4',
-      brand: dark ? '#6ba4ff' : '#1651dc',
+      bg: dark ? '#100f12' : '#f8f6f1',
+      card: dark ? '#191820' : '#ffffff',
+      ink,
+      muted: dark ? '#9b95a0' : '#6b6672',
+      faint: dark ? '#6f6a76' : '#a5a0aa',
+      line: dark ? '#272630' : '#eae5dc',
+      track: dark ? '#221f28' : '#f1ece3',
+      brand: dark ? '#8ec8ff' : '#1651dc',
       brandSoft: dark ? '#16233d' : '#e7effe',
-      sandSoft: dark ? '#302512' : '#fdf1de',
+      sandSoft: dark ? '#2c2314' : '#fdf1de',
+      sandInk: dark ? '#eabd66' : '#a14b1d',
+      navOn: dark ? '#f2d89e' : '#a14b1d',
+      navOff: dark ? '#6f6a76' : '#a5a0aa',
     };
   }
 }

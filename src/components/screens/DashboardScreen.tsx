@@ -256,7 +256,7 @@ export function DashboardScreen() {
       {/* ---------------- info cards ---------------- */}
       <section className="mb-5">
         <SectionTitle>סקירה</SectionTitle>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-px bg-line rounded-2xl overflow-hidden border border-line shadow-card">
           <Link href="/flights">
             <Stat
               icon={<Plane className="size-3.5" />}
