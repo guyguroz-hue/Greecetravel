@@ -20,6 +20,8 @@ export interface CheckResult {
   detail: string;
   /** What to do about it, when it isn't ok. */
   fix?: string;
+  /** Nothing after this can produce a meaningful answer, so stop the run. */
+  fatal?: boolean;
 }
 
 const PROJECT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? '';
@@ -31,12 +33,13 @@ const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? '';
  * field, and `sb_secret_…` / a `service_role` JWT is a key that must never
  * reach the browser at all.
  */
-function inspectKey(key: string): { status: CheckStatus; detail: string; fix?: string } | null {
+function inspectKey(key: string): Omit<CheckResult, 'id' | 'label'> | null {
   if (/^sb_secret_/.test(key)) {
     return {
       status: 'fail',
       detail: 'המפתח שהוגדר הוא Secret key — הוא עוקף את כל חוקי ההרשאות ואסור שיגיע לדפדפן.',
       fix: 'להחליף מיד ל-Publishable key מ-Settings → API Keys, ואז לעשות Rotate למפתח הסודי שנחשף.',
+      fatal: true,
     };
   }
   if (/\s/.test(key)) {
@@ -60,7 +63,12 @@ function describe(err: unknown): string {
   if (!err) return '';
   if (typeof err === 'object') {
     const e = err as { message?: string; code?: string; hint?: string };
-    return [e.code, e.message].filter(Boolean).join(' · ') || JSON.stringify(err);
+    const said = [e.code, e.message].filter(Boolean).join(' · ');
+    if (said) return said;
+    // A HEAD request carries no body to parse, so the error can be genuinely
+    // blank. Printing the empty object as JSON just puzzles the reader.
+    const json = JSON.stringify(err);
+    return json === '{}' || /^\{"message":""\}$/.test(json) ? '' : json;
   }
   return String(err);
 }
@@ -75,6 +83,7 @@ async function checkEnv(): Promise<CheckResult> {
       status: 'fail',
       detail: 'NEXT_PUBLIC_SUPABASE_URL או NEXT_PUBLIC_SUPABASE_ANON_KEY חסרים.',
       fix: 'להוסיף את שניהם ב-Vercel תחת Settings → Environment Variables, ואז Redeploy. המשתנים נצרבים בזמן הבילד, ולכן פריסה מחדש היא חובה.',
+      fatal: true,
     };
   }
   if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(PROJECT_URL)) {
@@ -105,8 +114,13 @@ async function checkKey(): Promise<CheckResult> {
 async function checkReachable(): Promise<CheckResult> {
   const base = { id: 'reach', label: 'חיבור לפרויקט' };
   try {
+    // Both headers, because that is what supabase-js sends. With a legacy
+    // anon JWT the gateway fills Authorization in from apikey on its own, so
+    // apikey alone appeared to be enough — but with a publishable key it is
+    // not, and the check then failed against a project the app itself could
+    // talk to perfectly well.
     const res = await fetch(`${PROJECT_URL.replace(/\/$/, '')}/rest/v1/`, {
-      headers: { apikey: ANON_KEY },
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
     });
     // Any HTTP answer means the project exists and the key was accepted well
     // enough to route; 401/403 means the key itself is wrong.
@@ -130,7 +144,7 @@ async function checkReachable(): Promise<CheckResult> {
         detail: `הפרויקט עונה אבל דוחה את המפתח (${res.status}).${reason ? ` ${reason}` : ''}`,
         fix: legacyDisabled
           ? 'מפתחות ה-JWT הישנים מושבתים בפרויקט הזה. ב-Settings → API Keys להעתיק את ה-Publishable key (מתחיל ב-sb_publishable_), לעדכן אותו ב-Vercel ולעשות Redeploy.'
-          : 'ב-Settings → API Keys להעתיק מחדש עם כפתור ההעתקה את ה-Publishable key (או את מפתח ה-anon public, אם הישנים עדיין פעילים), לעדכן ב-Vercel ולעשות Redeploy. לוודא שזה לא מפתח service_role או secret.',
+          : 'ב-Settings → API Keys להעתיק מחדש עם כפתור ההעתקה את ה-Publishable key (או את מפתח ה-anon public, אם הישנים עדיין פעילים), לעדכן ב-Vercel ולעשות Redeploy. לוודא שזה לא מפתח service_role או secret. חשוב: אם הבדיקות שמתחת ירוקות — המפתח דווקא תקין והאפליקציה עובדת; אז אין מה לתקן.',
       };
     }
     return { ...base, status: 'ok', detail: `הפרויקט עונה (${res.status}).` };
@@ -140,6 +154,9 @@ async function checkReachable(): Promise<CheckResult> {
       status: 'fail',
       detail: `לא הצלחנו להגיע לפרויקט. ${describe(err)}`,
       fix: 'לוודא שהכתובת נכונה ושהפרויקט ב-Supabase פעיל (פרויקטים חינמיים נכנסים לשינה אחרי חוסר שימוש — כניסה ללוח הבקרה מעירה אותם).',
+      // No HTTP answer at all: the address is wrong or the project is
+      // asleep, and every check below would just repeat the same timeout.
+      fatal: true,
     };
   }
 }
@@ -174,6 +191,7 @@ async function checkTables(): Promise<CheckResult> {
   const tables = ['trips', 'trip_members', 'days', 'activities', 'expenses', 'documents'];
   const missing: string[] = [];
   const denied: string[] = [];
+  const other: string[] = [];
 
   for (const table of tables) {
     const { error } = await supabase.from(table).select('*', { head: true, count: 'exact' }).limit(1);
@@ -183,6 +201,9 @@ async function checkTables(): Promise<CheckResult> {
     // tables means the migration's grants did not apply.
     if (code === '42P01' || /does not exist/i.test(error.message)) missing.push(table);
     else if (code === '42501') denied.push(table);
+    // Anything else is still a failed read. Reporting it as "fine" is how a
+    // rejected key ends up looking like a healthy schema.
+    else other.push(describe(error));
   }
 
   if (missing.length > 0) {
@@ -199,6 +220,14 @@ async function checkTables(): Promise<CheckResult> {
       status: 'warn',
       detail: `אין הרשאת קריאה ל: ${denied.join(', ')}`,
       fix: 'להריץ את הסכימה שוב — היא מגדירה את חוקי ההרשאות מחדש.',
+    };
+  }
+  if (other.length > 0) {
+    return {
+      ...base,
+      status: 'fail',
+      detail: `הקריאה לטבלאות נכשלה${other[0] ? `: ${other[0]}` : ' — השרת דחה את הבקשה.'}`,
+      fix: 'אם הבדיקה של המפתח למעלה נכשלה — זו אותה תקלה, ומספיק לתקן אותה.',
     };
   }
   return { ...base, status: 'ok', detail: `כל ${tables.length} הטבלאות שנבדקו קיימות.` };
@@ -218,6 +247,16 @@ async function checkStorage(): Promise<CheckResult> {
       status: 'fail',
       detail: `ה-bucket ${DOCUMENTS_BUCKET} לא נמצא.`,
       fix: 'החלק האחרון של הסכימה יוצר אותו. אם הוא לא נוצר — אפשר ליצור ידנית ב-Storage bucket פרטי בשם trip-documents ולהריץ שוב את הסכימה.',
+    };
+  }
+  // A key that was refused outright says nothing about the bucket, so it must
+  // not be reported as one that exists and is merely protected.
+  if (/api key|unauthorized|invalid.*jwt|jwt.*invalid/i.test(error.message)) {
+    return {
+      ...base,
+      status: 'fail',
+      detail: describe(error),
+      fix: 'אם הבדיקה של המפתח למעלה נכשלה — זו אותה תקלה, ומספיק לתקן אותה.',
     };
   }
   // A permission error while signed out is the expected, correct behaviour.
@@ -317,11 +356,10 @@ export async function runDiagnostics(
     results.push(result);
     onResult(result);
 
-    // Nothing below can succeed if we cannot even reach the project — and a
-    // secret key must not be sent anywhere, so that one stops here too.
-    if (result.status === 'fail' && (result.id === 'env' || result.id === 'key' || result.id === 'reach')) {
-      break;
-    }
+    // A rejected key is deliberately *not* fatal: the checks below go through
+    // supabase-js, so if this hand-rolled request is the thing that is wrong,
+    // they will say so instead of the run stopping on a false alarm.
+    if (result.fatal) break;
   }
 
   return results;
