@@ -29,6 +29,9 @@ export function TripsAccountBar() {
 
   const [localOnly, setLocalOnly] = useState(0);
   const [uploading, setUploading] = useState(false);
+  // Shown in the card rather than as a toast: the reason is technical, worth
+  // reading twice, and worth being able to select and send on.
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // How many trips exist on this device but not yet in the account. The read
   // is async in both branches so the effect never sets state synchronously.
@@ -105,15 +108,27 @@ export function TripsAccountBar() {
             loading={uploading}
             onClick={async () => {
               setUploading(true);
+              setUploadError(null);
               const result = await uploadLocalTripsToCloud();
               setUploading(false);
               if (result.ok) toast.success(result.message);
-              else toast.show(result.message);
+              else setUploadError(result.message);
             }}
           >
             <CloudUpload className="size-4" />
             העלאה לחשבון
           </Button>
+
+          {uploadError && (
+            <div className="mt-3 rounded-xl bg-danger-soft px-3 py-2.5">
+              <p className="text-[12.5px] text-danger leading-relaxed break-words select-text">
+                {uploadError}
+              </p>
+              <p className="text-[11.5px] text-danger/75 mt-1.5 leading-relaxed">
+                הטיול נשאר שמור במכשיר — שום דבר לא אבד.
+              </p>
+            </div>
+          )}
         </Card>
       )}
     </div>

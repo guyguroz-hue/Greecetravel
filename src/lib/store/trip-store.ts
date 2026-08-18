@@ -310,7 +310,11 @@ export const useTripStore = create<TripState>()((set, get) => {
         await getRepository().save(merged);
       } catch (err) {
         console.error('[store] upload failed', err);
-        return { ok: false, message: 'ההעלאה נכשלה. אפשר לנסות שוב.' };
+        // The reason is the whole value of this message. "Try again" on its
+        // own asks the person to repeat an action that cannot succeed.
+        const reason = err instanceof Error ? err.message : String(err);
+        set({ syncError: `ההעלאה נכשלה — ${reason}` });
+        return { ok: false, message: `ההעלאה נכשלה: ${reason}` };
       }
 
       set({ data: merged, activeTripId: newTrips[0].id, undoStack: [], syncError: null });

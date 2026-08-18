@@ -122,8 +122,10 @@ export class SupabaseRepository implements TripRepository {
         const remote = await this.fetchAll();
         this.synced = clone(remote);
       } catch (err) {
+        // Returning here used to report success to the caller while nothing
+        // had been written — the one outcome a save must never produce.
         this.pendingError = describe(err);
-        return;
+        throw err;
       }
     }
 
@@ -201,7 +203,9 @@ export class SupabaseRepository implements TripRepository {
       const { error } = await this.client.from(mapper.table).upsert(rows, {
         onConflict: 'id',
       });
-      if (error) throw error;
+      // Which table refused the write is most of the diagnosis, and the bare
+      // PostgREST message never mentions it.
+      if (error) throw tableError(mapper.table, error);
     }
 
     // Deletes child-first, so foreign keys never block a removal.
@@ -211,7 +215,7 @@ export class SupabaseRepository implements TripRepository {
         .from(mapper.table)
         .delete()
         .in('id', diff.deleteIds);
-      if (error) throw error;
+      if (error) throw tableError(mapper.table, error);
     }
   }
 }
@@ -223,8 +227,29 @@ function clone(data: TripData): TripData {
 }
 
 function describe(err: unknown): string {
-  if (err && typeof err === 'object' && 'message' in err) return String(err.message);
+  if (err && typeof err === 'object' && 'message' in err) {
+    const e = err as { message?: string; code?: string; details?: string };
+    return [e.code, e.message, e.details].filter(Boolean).join(' · ');
+  }
   return String(err);
+}
+
+/**
+ * Names the table on a failed write and turns the two failures worth telling
+ * apart into instructions. Everything else is passed through verbatim rather
+ * than flattened into "something went wrong".
+ */
+function tableError(table: string, error: { message: string; code?: string }): Error {
+  const code = error.code;
+  let hint = '';
+  if (code === '42501' || /row-level security/i.test(error.message)) {
+    hint = ' — אין הרשאת כתיבה לטבלה הזו. אם זה טיול משותף, ייתכן שההרשאה שלך היא צפייה בלבד.';
+  } else if (code === '42P01') {
+    hint = ' — הטבלה לא קיימת. צריך להריץ את 0001_init.sql ב-SQL Editor.';
+  }
+  const wrapped = new Error(`${table}: ${describe(error)}${hint}`);
+  wrapped.cause = error;
+  return wrapped;
 }
 
 function writeCache(data: TripData) {
