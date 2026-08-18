@@ -1,8 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useRef, useState } from 'react';
 import {
+  ChevronLeft,
   Check,
   Download,
   Globe,
@@ -31,12 +32,10 @@ import { Sheet } from '@/components/ui/Sheet';
 import { ConfirmDialog } from '@/components/ui/Feedback';
 import { Avatar, Badge } from '@/components/ui/Bits';
 import { CloudAccountCard } from '@/components/settings/CloudAccountCard';
-import { TripMembersCard } from '@/components/settings/TripMembersCard';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 
 export function SettingsScreen() {
-  const router = useRouter();
   const active = useActiveTrip();
   const authStatus = useAuthStore((s) => s.status);
   const updateTrip = useTripStore((s) => s.updateTrip);
@@ -301,30 +300,17 @@ export function SettingsScreen() {
       </section>
 
       {/* ---------------- sharing ---------------- */}
-      {cloudReady ? (
-        <TripMembersCard tripId={trip.id} tripName={trip.name} />
-      ) : (
-        <section className="mb-5">
-          <SectionTitle>שיתוף הטיול</SectionTitle>
-          <Card className="p-4">
-            <p className="text-[13px] text-muted leading-relaxed">
-              שיתוף עם אנשים נוספים דורש חשבון. בלי חשבון הטיול חי במכשיר הזה בלבד — אפשר
-              בינתיים לייצא גיבוי ולשלוח אותו.
-            </p>
-            {supabaseAvailable && (
-              <Button
-                variant="secondary"
-                fullWidth
-                className="mt-3"
-                onClick={() => router.push('/login')}
-              >
-                <Share2 className="size-4" />
-                התחברות כדי לשתף
-              </Button>
-            )}
-          </Card>
-        </section>
-      )}
+      <section className="mb-5">
+        <SectionTitle>שיתוף</SectionTitle>
+        <Link
+          href="/share"
+          className="flex items-center gap-3.5 rounded-2xl border border-line bg-surface px-4 py-3.5 hover:bg-subtle transition"
+        >
+          <Share2 className="size-[18px] shrink-0 stroke-[1.5] text-muted" />
+          <span className="flex-1 text-[14.5px]">מי בטיול הזה</span>
+          <ChevronLeft className="size-4 text-faint shrink-0" />
+        </Link>
+      </section>
 
       {/* ---------------- app ---------------- */}
       <section className="mb-5">
