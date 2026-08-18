@@ -543,9 +543,17 @@ create policy profiles_update on public.profiles for update to authenticated
   using (id = auth.uid()) with check (id = auth.uid());
 
 -- trips ---------------------------------------------------------------
+-- `created_by` matters here as well as membership, and not only so a creator
+-- can always see their own trip. Postgres applies SELECT policies to
+-- `insert ... on conflict do update`, which is what the app sends for every
+-- row it syncs. A trip being created has no row in trip_members yet — that
+-- happens in an AFTER INSERT trigger, after this is evaluated — so a
+-- membership-only policy refused the statement outright, and the first trip
+-- anyone tried to put in the cloud failed with "new row violates row-level
+-- security policy". The column is stamped by a trigger and cannot be spoofed.
 drop policy if exists trips_select on public.trips;
 create policy trips_select on public.trips for select to authenticated
-  using (public.is_trip_member(id));
+  using (public.is_trip_member(id) or created_by = auth.uid());
 
 -- `created_by` is stamped by a trigger rather than trusted from the client,
 -- and is deliberately absent from the columns the app sends, so an upsert

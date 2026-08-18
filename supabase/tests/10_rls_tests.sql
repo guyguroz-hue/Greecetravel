@@ -362,3 +362,53 @@ begin;
     and (select name from public.trips where id = 'trip_c') = 'Renamed',
     'an upsert updates the trip without clearing created_by');
 commit;
+
+/* ---------------- 13. the sync path: upserting a brand new trip ----------
+ *
+ * The app never sends a plain INSERT — every row it syncs goes out as
+ * `insert ... on conflict (id) do update`. Postgres applies SELECT policies
+ * to that statement, and a trip being created has no trip_members row yet,
+ * so a membership-only SELECT policy refused it and no one could put their
+ * first trip in the cloud. A plain INSERT passed, which is exactly why this
+ * went unnoticed — so the test has to use the upsert form.
+ * ------------------------------------------------------------------------ */
+
+begin;
+  select tst.as_user((select id from tst.ids where k = 'stranger'));
+  insert into public.trips (id, name, start_date, end_date)
+  values ('trip_new', 'First cloud trip', '2027-09-01', '2027-09-07')
+  on conflict (id) do update set name = excluded.name;
+  select tst.ok(
+    (select count(*) from public.trips where id = 'trip_new') = 1,
+    'a new trip can be created through the upsert the app actually sends');
+  select tst.ok(
+    (select role from public.trip_members
+      where trip_id = 'trip_new'
+        and user_id = (select id from tst.ids where k = 'stranger'))::text = 'owner',
+    'and its creator is recorded as the owner');
+commit;
+
+-- The widened SELECT policy must not let anyone else write to that trip.
+begin;
+  select tst.as_user((select id from tst.ids where k = 'editor'));
+  savepoint s;
+  do $$
+  begin
+    insert into public.trips (id, name, start_date, end_date)
+    values ('trip_new', 'Hijacked', '2027-09-01', '2027-09-07')
+    on conflict (id) do update set name = excluded.name;
+    raise exception 'FAIL  a non-member upsert should have been blocked';
+  exception
+    when insufficient_privilege then
+      raise notice 'PASS  a non-member still cannot upsert another persons trip';
+  end $$;
+  rollback to savepoint s;
+commit;
+
+-- Nor read it.
+begin;
+  select tst.as_user((select id from tst.ids where k = 'editor'));
+  select tst.ok(
+    (select count(*) from public.trips where id = 'trip_new') = 0,
+    'and still cannot see it');
+commit;
