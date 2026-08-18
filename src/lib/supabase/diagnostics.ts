@@ -113,41 +113,38 @@ async function checkKey(): Promise<CheckResult> {
 
 async function checkReachable(): Promise<CheckResult> {
   const base = { id: 'reach', label: 'חיבור לפרויקט' };
+  const supabase = getSupabase();
+  if (!supabase) return { ...base, status: 'skip', detail: 'אין חיבור.' };
   try {
-    // Both headers, because that is what supabase-js sends. With a legacy
-    // anon JWT the gateway fills Authorization in from apikey on its own, so
-    // apikey alone appeared to be enough — but with a publishable key it is
-    // not, and the check then failed against a project the app itself could
-    // talk to perfectly well.
-    const res = await fetch(`${PROJECT_URL.replace(/\/$/, '')}/rest/v1/`, {
-      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
-    });
-    // Any HTTP answer means the project exists and the key was accepted well
-    // enough to route; 401/403 means the key itself is wrong.
-    if (res.status === 401 || res.status === 403) {
-      // The gateway explains *why* it rejected the key, and the two reasons
-      // need opposite fixes: a wrong value is re-copied, whereas a disabled
-      // legacy key is replaced with the publishable one. Without this the
-      // screen can only say "the key is wrong", which sends people back to
-      // re-copy the very key that will keep being refused.
-      const reason = await res
-        .clone()
-        .json()
-        .then((b: { message?: string; msg?: string; hint?: string }) =>
-          [b.message ?? b.msg, b.hint].filter(Boolean).join(' — ')
-        )
-        .catch(() => '');
-      const legacyDisabled = /legacy|disabled/i.test(reason);
-      return {
-        ...base,
-        status: 'fail',
-        detail: `הפרויקט עונה אבל דוחה את המפתח (${res.status}).${reason ? ` ${reason}` : ''}`,
-        fix: legacyDisabled
-          ? 'מפתחות ה-JWT הישנים מושבתים בפרויקט הזה. ב-Settings → API Keys להעתיק את ה-Publishable key (מתחיל ב-sb_publishable_), לעדכן אותו ב-Vercel ולעשות Redeploy.'
-          : 'ב-Settings → API Keys להעתיק מחדש עם כפתור ההעתקה את ה-Publishable key (או את מפתח ה-anon public, אם הישנים עדיין פעילים), לעדכן ב-Vercel ולעשות Redeploy. לוודא שזה לא מפתח service_role או secret. חשוב: אם הבדיקות שמתחת ירוקות — המפתח דווקא תקין והאפליקציה עובדת; אז אין מה לתקן.',
-      };
+    // Through supabase-js, against a real table — the same call the app
+    // makes. Probing PostgREST's root endpoint by hand looked equivalent and
+    // was not: Supabase restricts it to secret keys, so it reported a broken
+    // key on a project the app was talking to perfectly well.
+    // A real GET rather than a HEAD: a HEAD response has no body, so the
+    // server's explanation for refusing the key would be thrown away.
+    const { error } = await supabase.from('profiles').select('id').limit(1);
+
+    if (error) {
+      const code = (error as { code?: string }).code;
+      // The schema not being installed is the next check's story, not this
+      // one's; the project clearly answered.
+      if (code === '42P01' || /does not exist/i.test(error.message)) {
+        return { ...base, status: 'ok', detail: 'הפרויקט עונה.' };
+      }
+      if (/api key|unauthorized|jwt/i.test(error.message) || code === '401' || code === '403') {
+        const legacyDisabled = /legacy|disabled/i.test(error.message);
+        return {
+          ...base,
+          status: 'fail',
+          detail: `הפרויקט עונה אבל דוחה את המפתח. ${describe(error)}`,
+          fix: legacyDisabled
+            ? 'מפתחות ה-JWT הישנים מושבתים בפרויקט הזה. ב-Settings → API Keys להעתיק את ה-Publishable key (מתחיל ב-sb_publishable_), לעדכן אותו ב-Vercel ולעשות Redeploy.'
+            : 'ב-Settings → API Keys להעתיק מחדש עם כפתור ההעתקה את ה-Publishable key, לעדכן ב-Vercel ולעשות Redeploy. לוודא שזה לא מפתח service_role או secret.',
+        };
+      }
+      return { ...base, status: 'warn', detail: describe(error) };
     }
-    return { ...base, status: 'ok', detail: `הפרויקט עונה (${res.status}).` };
+    return { ...base, status: 'ok', detail: 'הפרויקט עונה והמפתח מתקבל.' };
   } catch (err) {
     return {
       ...base,
