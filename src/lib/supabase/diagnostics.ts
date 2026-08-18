@@ -291,6 +291,92 @@ async function checkAuth(): Promise<CheckResult> {
   };
 }
 
+/** Reads a JWT's payload without verifying it — enough to see its claims. */
+function decodeJwt(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The check that separates "signed in" from "signed in as far as the database
+ * is concerned".
+ *
+ * The device can hold a perfectly good-looking session while Postgres sees an
+ * anonymous request — and because an anonymous SELECT under these policies
+ * returns zero rows instead of an error, that state looks exactly like a new
+ * empty account until the first write is refused.
+ */
+async function checkIdentity(): Promise<CheckResult> {
+  const base = { id: 'identity', label: 'הזהות שהשרת מזהה' };
+  const supabase = getSupabase();
+  if (!supabase) return { ...base, status: 'skip', detail: 'אין חיבור.' };
+
+  const { data: sess } = await supabase.auth.getSession();
+  if (!sess.session) return { ...base, status: 'skip', detail: 'רלוונטי רק אחרי התחברות.' };
+
+  const claims = decodeJwt(sess.session.access_token) ?? {};
+  const role = typeof claims.role === 'string' ? claims.role : '(אין)';
+  const exp = typeof claims.exp === 'number' ? claims.exp : null;
+  const secondsLeft = exp ? exp - Math.floor(Date.now() / 1000) : null;
+
+  // getUser() is answered by the server, so unlike getSession() it cannot be
+  // satisfied by a stale token sitting in local storage.
+  const { data: who, error } = await supabase.auth.getUser();
+  if (error || !who.user) {
+    return {
+      ...base,
+      status: 'fail',
+      detail:
+        `המכשיר מחזיק חיבור פעיל, אבל השרת לא מקבל אותו` +
+        (secondsLeft !== null && secondsLeft <= 0 ? ' — התוקן של החיבור פג.' : '.') +
+        (error ? ` ${describe(error)}` : ''),
+      fix: 'להתנתק ולהתחבר מחדש. אם זה חוזר, סימן שהמפתח ב-Vercel שייך לפרויקט אחר מזה שההתחברות נעשית מולו.',
+    };
+  }
+
+  if (role !== 'authenticated') {
+    return {
+      ...base,
+      status: 'fail',
+      detail: `החיבור מזוהה בתור ״${role}״ ולא בתור authenticated, ולכן כל כתיבה תידחה.`,
+      fix: 'להתנתק ולהתחבר מחדש.',
+    };
+  }
+
+  // Proof that auth.uid() resolves inside Postgres: the profile row is
+  // visible only to its owner, so getting it back means the JWT arrived.
+  const { data: rows, error: profileError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', who.user.id);
+
+  if (profileError) {
+    return { ...base, status: 'warn', detail: describe(profileError) };
+  }
+  if (!rows || rows.length === 0) {
+    return {
+      ...base,
+      status: 'fail',
+      detail:
+        'השרת מזהה את החשבון, אבל בתוך מסד הנתונים הבקשות מגיעות בלי זהות — ' +
+        'ולכן כתיבה נדחית וקריאה מחזירה ריק במקום שגיאה.',
+      fix: 'להריץ את supabase/migrations/0001_init.sql שוב ב-SQL Editor. אם זה לא עוזר — ב-Supabase תחת Settings → API Keys לוודא שהמפתח שב-Vercel שייך לפרויקט הזה.',
+    };
+  }
+
+  return {
+    ...base,
+    status: 'ok',
+    detail: `מזוהה כ-${who.user.email ?? who.user.id} בתפקיד authenticated, וגם מסד הנתונים רואה את זה.`,
+  };
+}
+
 async function checkMyData(): Promise<CheckResult> {
   const base = { id: 'data', label: 'קריאת הטיולים שלך' };
   const supabase = getSupabase();
@@ -337,6 +423,7 @@ export async function runDiagnostics(
     checkTables,
     checkStorage,
     checkAuth,
+    checkIdentity,
     checkMyData,
   ];
   const results: CheckResult[] = [];
