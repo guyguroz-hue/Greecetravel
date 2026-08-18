@@ -23,6 +23,38 @@ export interface CheckResult {
 }
 
 const PROJECT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? '';
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? '';
+
+/**
+ * Supabase issues two shapes of browser key: the current `sb_publishable_…`
+ * and the legacy JWT starting `eyJ`. Anything else was copied from the wrong
+ * field, and `sb_secret_…` / a `service_role` JWT is a key that must never
+ * reach the browser at all.
+ */
+function inspectKey(key: string): { status: CheckStatus; detail: string; fix?: string } | null {
+  if (/^sb_secret_/.test(key)) {
+    return {
+      status: 'fail',
+      detail: 'המפתח שהוגדר הוא Secret key — הוא עוקף את כל חוקי ההרשאות ואסור שיגיע לדפדפן.',
+      fix: 'להחליף מיד ל-Publishable key מ-Settings → API Keys, ואז לעשות Rotate למפתח הסודי שנחשף.',
+    };
+  }
+  if (/\s/.test(key)) {
+    return {
+      status: 'warn',
+      detail: 'במפתח יש רווח או שבירת שורה באמצע — כנראה הועתק בסימון ידני.',
+      fix: 'להעתיק שוב עם כפתור ההעתקה שליד המפתח ב-Settings → API Keys.',
+    };
+  }
+  if (!/^sb_publishable_/.test(key) && !key.startsWith('eyJ')) {
+    return {
+      status: 'warn',
+      detail: 'המפתח לא נראה כמו מפתח של Supabase.',
+      fix: 'מפתח תקין מתחיל ב-sb_publishable_ (הפורמט הנוכחי) או ב-eyJ (הישן). כדאי להעתיק שוב מ-Settings → API Keys.',
+    };
+  }
+  return null;
+}
 
 function describe(err: unknown): string {
   if (!err) return '';
@@ -62,20 +94,43 @@ async function checkEnv(): Promise<CheckResult> {
   };
 }
 
+async function checkKey(): Promise<CheckResult> {
+  const base = { id: 'key', label: 'המפתח הציבורי' };
+  const problem = inspectKey(ANON_KEY);
+  if (problem) return { ...base, ...problem };
+  const kind = ANON_KEY.startsWith('sb_publishable_') ? 'Publishable key' : 'מפתח anon ישן (JWT)';
+  return { ...base, status: 'ok', detail: `הפורמט תקין — ${kind}.` };
+}
+
 async function checkReachable(): Promise<CheckResult> {
   const base = { id: 'reach', label: 'חיבור לפרויקט' };
   try {
     const res = await fetch(`${PROJECT_URL.replace(/\/$/, '')}/rest/v1/`, {
-      headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '' },
+      headers: { apikey: ANON_KEY },
     });
     // Any HTTP answer means the project exists and the key was accepted well
     // enough to route; 401/403 means the key itself is wrong.
     if (res.status === 401 || res.status === 403) {
+      // The gateway explains *why* it rejected the key, and the two reasons
+      // need opposite fixes: a wrong value is re-copied, whereas a disabled
+      // legacy key is replaced with the publishable one. Without this the
+      // screen can only say "the key is wrong", which sends people back to
+      // re-copy the very key that will keep being refused.
+      const reason = await res
+        .clone()
+        .json()
+        .then((b: { message?: string; msg?: string; hint?: string }) =>
+          [b.message ?? b.msg, b.hint].filter(Boolean).join(' — ')
+        )
+        .catch(() => '');
+      const legacyDisabled = /legacy|disabled/i.test(reason);
       return {
         ...base,
         status: 'fail',
-        detail: `הפרויקט עונה אבל דוחה את המפתח (${res.status}).`,
-        fix: 'להעתיק מחדש את המפתח anon public מ-Project Settings → API. שימי לב שזה לא מפתח service_role.',
+        detail: `הפרויקט עונה אבל דוחה את המפתח (${res.status}).${reason ? ` ${reason}` : ''}`,
+        fix: legacyDisabled
+          ? 'מפתחות ה-JWT הישנים מושבתים בפרויקט הזה. ב-Settings → API Keys להעתיק את ה-Publishable key (מתחיל ב-sb_publishable_), לעדכן אותו ב-Vercel ולעשות Redeploy.'
+          : 'ב-Settings → API Keys להעתיק מחדש עם כפתור ההעתקה את ה-Publishable key (או את מפתח ה-anon public, אם הישנים עדיין פעילים), לעדכן ב-Vercel ולעשות Redeploy. לוודא שזה לא מפתח service_role או secret.',
       };
     }
     return { ...base, status: 'ok', detail: `הפרויקט עונה (${res.status}).` };
@@ -235,7 +290,16 @@ async function checkMyData(): Promise<CheckResult> {
 export async function runDiagnostics(
   onResult: (result: CheckResult) => void
 ): Promise<CheckResult[]> {
-  const steps = [checkEnv, checkReachable, checkSchema, checkTables, checkStorage, checkAuth, checkMyData];
+  const steps = [
+    checkEnv,
+    checkKey,
+    checkReachable,
+    checkSchema,
+    checkTables,
+    checkStorage,
+    checkAuth,
+    checkMyData,
+  ];
   const results: CheckResult[] = [];
 
   for (const step of steps) {
@@ -253,9 +317,11 @@ export async function runDiagnostics(
     results.push(result);
     onResult(result);
 
-    // Nothing below can succeed if we cannot even reach the project.
-    if (result.id === 'reach' && result.status === 'fail') break;
-    if (result.id === 'env' && result.status === 'fail') break;
+    // Nothing below can succeed if we cannot even reach the project — and a
+    // secret key must not be sent anywhere, so that one stops here too.
+    if (result.status === 'fail' && (result.id === 'env' || result.id === 'key' || result.id === 'reach')) {
+      break;
+    }
   }
 
   return results;
