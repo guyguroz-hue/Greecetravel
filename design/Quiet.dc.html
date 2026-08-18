@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@200;300;400;600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #1a3c8c; } a:hover { color: #142655; }
+  </style>
+</helmet>
+
+<div dir="rtl" style="width: 412px; min-height: 900px; font-family: 'Assistant', system-ui, sans-serif; background: {{bg}}; color: {{ink}}; display: flex; flex-direction: column;">
+
+  <div style="padding: 40px 26px 0;">
+    <div style="font-size: 11.5px; letter-spacing: 0.2em; color: {{muted}}; font-weight: 400;">הטיולים שלי</div>
+  </div>
+
+  <!-- the trip, set as type rather than as a card -->
+  <div style="padding: 26px 26px 0;">
+    <div style="font-size: 46px; font-weight: 200; line-height: 1.02; letter-spacing: -0.025em;">צפון יוון</div>
+    <div style="font-size: 15px; font-weight: 300; color: {{muted}}; margin-top: 12px;">סלוניקי · מטסובו · מטאורה</div>
+
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 26px;">
+      <div style="font-size: 15px; font-weight: 400;">17 – 23 בספטמבר</div>
+      <div style="width: 3px; height: 3px; border-radius: 999px; background: {{faint}};"></div>
+      <div style="font-size: 15px; font-weight: 300; color: {{muted}};">בעוד 30 יום</div>
+    </div>
+  </div>
+
+  <!-- one hairline band of figures, no boxes at all -->
+  <div style="margin: 34px 26px 0; border-top: 1px solid {{line}}; border-bottom: 1px solid {{line}}; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));">
+    <div style="padding: 20px 0;">
+      <div style="font-size: 30px; font-weight: 200; line-height: 1;">7</div>
+      <div style="font-size: 11.5px; color: {{muted}}; margin-top: 7px; letter-spacing: 0.06em;">ימים</div>
+    </div>
+    <div style="padding: 20px 0;">
+      <div style="font-size: 30px; font-weight: 200; line-height: 1;">3</div>
+      <div style="font-size: 11.5px; color: {{muted}}; margin-top: 7px; letter-spacing: 0.06em;">מטיילים</div>
+    </div>
+    <div style="padding: 20px 0;">
+      <div style="font-size: 30px; font-weight: 200; line-height: 1;">12</div>
+      <div style="font-size: 11.5px; color: {{muted}}; margin-top: 7px; letter-spacing: 0.06em;">פעילויות</div>
+    </div>
+  </div>
+
+  <!-- budget as a single quiet line -->
+  <div style="padding: 26px 26px 0;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+      <div style="font-size: 13px; color: {{muted}}; letter-spacing: 0.04em;">תקציב</div>
+      <div style="font-size: 13px; color: {{muted}}; font-weight: 300;">23%</div>
+    </div>
+    <div style="display: flex; align-items: baseline; gap: 9px; margin-top: 8px;">
+      <div style="font-size: 27px; font-weight: 300;">₪8,120</div>
+      <div style="font-size: 14px; color: {{faint}}; font-weight: 300;">/ ₪35,000</div>
+    </div>
+    <div style="height: 2px; background: {{line}}; margin-top: 16px; position: relative;">
+      <div style="position: absolute; inset-inline-start: 0; top: 0; height: 2px; width: 23%; background: {{ink}};"></div>
+    </div>
+  </div>
+
+  <!-- days as a bare list -->
+  <div style="padding: 36px 26px 0;">
+    <div style="font-size: 11.5px; letter-spacing: 0.2em; color: {{muted}}; margin-bottom: 4px;">הימים הקרובים</div>
+    <sc-for list="{{days}}" as="d" hint-placeholder-count="4">
+      <div style="display: flex; align-items: baseline; gap: 16px; padding: 17px 0; border-bottom: 1px solid {{line}};">
+        <div style="width: 34px; flex-shrink: 0;">
+          <div style="font-size: 18px; font-weight: 300; line-height: 1;">{{d.num}}</div>
+          <div style="font-size: 10.5px; color: {{faint}}; margin-top: 4px;">{{d.dow}}</div>
+        </div>
+        <div style="flex-grow: 1; min-width: 0;">
+          <div style="font-size: 15px; font-weight: 400;">{{d.title}}</div>
+          <div style="font-size: 12.5px; color: {{muted}}; margin-top: 3px; font-weight: 300;">{{d.sub}}</div>
+        </div>
+        <div style="font-size: 12px; color: {{faint}}; font-weight: 300;">{{d.count}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 34px;"></div>
+
+  <div style="border-top: 1px solid {{line}}; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 10px 8px 22px;">
+    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: {{navOn}};">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21H3z"/></svg>
+      <div style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;">בית</div>
+    </div>
+    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: {{navOff}};">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+      <div style="font-size: 10.5px; font-weight: 300; letter-spacing: 0.02em;">מסלול</div>
+    </div>
+    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: {{navOff}};">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 4-6 3v13l6-3 6 3 6-3V4l-6 3z"/><path d="M9 4v13M15 7v13"/></svg>
+      <div style="font-size: 10.5px; font-weight: 300; letter-spacing: 0.02em;">מפה</div>
+    </div>
+    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: {{navOff}};">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="3"/><circle cx="12" cy="12.5" r="2.5"/></svg>
+      <div style="font-size: 10.5px; font-weight: 300; letter-spacing: 0.02em;">תקציב</div>
+    </div>
+    <div style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: {{navOff}};">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+      <div style="font-size: 10.5px; font-weight: 300; letter-spacing: 0.02em;">עוד</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":false,"section":"תצוגה"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = this.props.dark ?? false;
+    const ink = dark ? '#f2efe9' : '#1a1814';
+    const off = dark ? '#6f6a61' : '#a8a29a';
+    return {
+      bg: dark ? '#12110f' : '#faf8f4',
+      ink,
+      navOn: ink,
+      navOff: off,
+      muted: dark ? '#9b958b' : '#6b665e',
+      faint: off,
+      line: dark ? '#26241f' : '#e6e1d8',
+      days: [
+        { num: '17', dow: 'ה׳', title: 'סלוניקי', sub: 'שוק מודיאנו · המגדל הלבן', count: '3' },
+        { num: '18', dow: 'ו׳', title: 'מטסובו', sub: 'יקב קטוגי · מוזיאון אברוף', count: '2' },
+        { num: '19', dow: 'ש׳', title: 'זגוריה', sub: 'ערוץ ויקוס · גשרי האבן', count: '4' },
+        { num: '20', dow: 'א׳', title: 'מטאורה', sub: 'עדיין ריק', count: '—' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

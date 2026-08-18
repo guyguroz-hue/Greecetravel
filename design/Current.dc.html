@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #1651dc; } a:hover { color: #1943b2; }
+  </style>
+</helmet>
+
+<!-- Today's screen, rebuilt from the app's own tokens: --bg #f6f7f9,
+     --bg-elevated #ffffff, --border #e3e6ec, --brand #1651dc, Rubik,
+     rounded-2xl cards, --shadow-sm. Here for honest comparison. -->
+<div dir="rtl" style="width: 412px; min-height: 900px; font-family: 'Rubik', system-ui, sans-serif; background: #f6f7f9; color: #131722;">
+
+  <div style="height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 16px; background: rgba(246,247,249,0.85); border-bottom: 1px solid #e3e6ec;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 36px; height: 36px; border-radius: 12px; background: #1651dc; color: #fff; display: flex; align-items: center; justify-content: center;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="14" rx="2.5"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7M4 13h16"/></svg>
+      </div>
+      <div>
+        <div style="font-size: 17px; font-weight: 600; line-height: 1.15;">הטיולים שלי</div>
+        <div style="font-size: 12px; color: #667085;">טיול 1</div>
+      </div>
+    </div>
+    <div style="height: 36px; display: flex; align-items: center; gap: 6px; background: #1651dc; color: #fff; border-radius: 8px; padding: 0 12px; font-size: 13px; font-weight: 500;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      טיול חדש
+    </div>
+  </div>
+
+  <div style="padding: 16px;">
+    <div style="background: #fff; border: 1px solid #e3e6ec; border-radius: 16px; box-shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.04); overflow: hidden;">
+      <div style="position: relative; height: 128px; background: linear-gradient(135deg, #3386fb 0%, #1651dc 55%, #1a3c8c 100%);">
+        <svg viewBox="0 0 412 128" width="412" height="128" style="position: absolute; inset: 0; opacity: 0.18;" aria-hidden="true">
+          <circle cx="330" cy="26" r="20" fill="#fff"/>
+          <rect x="40" y="62" width="34" height="66" fill="#fff"/>
+          <rect x="86" y="46" width="26" height="82" fill="#fff"/>
+          <rect x="124" y="72" width="30" height="56" fill="#fff"/>
+        </svg>
+        <div style="position: absolute; inset-inline-end: 14px; top: 46px; text-align: end;">
+          <div style="font-size: 12.5px; color: rgba(255,255,255,0.85);">סלוניקי, מטסובו, מטאורה</div>
+          <div style="font-size: 20px; font-weight: 600; color: #fff; margin-top: 2px;">צפון יוון</div>
+        </div>
+      </div>
+
+      <div style="padding: 12px 14px 14px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="background: #e7effe; color: #1651dc; font-size: 12px; font-weight: 500; border-radius: 999px; padding: 4px 10px;">בעוד 30 יום</div>
+          <div style="display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: #667085;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+            17.9.2026 – 23.9.2026
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 9px; font-size: 12.5px; color: #667085;">
+          <span>₪35,000</span><span>מטייל אחד</span><span>7 ימים</span>
+        </div>
+
+        <div style="height: 6px; border-radius: 999px; background: #eef0f4; margin-top: 12px; overflow: hidden;">
+          <div style="width: 3%; height: 100%; background: #1651dc; border-radius: 999px;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: #667085;">
+          <span>שולם ₪0</span><span>מתוכנן ₪922</span>
+        </div>
+
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e3e6ec; color: #98a2b3;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 22px; font-size: 12.5px; color: #667085;">הגדרות, גיבוי ושחזור נתונים</div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
