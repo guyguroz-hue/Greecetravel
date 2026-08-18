@@ -7,8 +7,13 @@ import { cn } from '@/lib/utils/cn';
  * every trip gets a distinctive header without a stock-photo dependency.
  */
 
+/**
+ * Moods, not places. The first used to be labelled "יוון", which read as a
+ * country sitting among "חוף" and "מדבר" — the keys stay as they are so trips
+ * already saved keep the cover they were given.
+ */
 export const COVER_PRESETS = [
-  { key: 'greece', label: 'יוון' },
+  { key: 'greece', label: 'ים' },
   { key: 'coast', label: 'חוף' },
   { key: 'mountain', label: 'הרים' },
   { key: 'city', label: 'עיר' },

@@ -12,6 +12,9 @@ import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
 import { Field, Select, TextInput, Toggle } from '@/components/ui/Field';
 import { COVER_PRESETS, CoverImage } from '@/components/layout/CoverImage';
+import { CountryPicker } from '@/components/ui/CountryPicker';
+import { DateRangePicker } from '@/components/ui/DateRangePicker';
+import { findCountry, supportedCurrency, type Country } from '@/lib/data/countries';
 
 /**
  * Four short steps rather than one long form. Nothing is required beyond a
@@ -21,7 +24,8 @@ const STEPS = ['הטיול', 'תאריכים', 'מטיילים ותקציב', '�
 
 interface Draft {
   name: string;
-  destination: string;
+  /** Optional detail under the country, e.g. "סלוניקי וזגוריה". */
+  region: string;
   countryCode: string;
   coverImage: string;
   startDate: string;
@@ -44,7 +48,7 @@ export function NewTripWizard() {
     const start = addDays(todayISO(), 30);
     return {
       name: '',
-      destination: '',
+      region: '',
       countryCode: '',
       coverImage: 'greece',
       startDate: start,
@@ -61,6 +65,30 @@ export function NewTripWizard() {
 
   const patch = (p: Partial<Draft>) => setDraft((d) => ({ ...d, ...p }));
 
+  const country = findCountry(draft.countryCode);
+
+  /** What the trip shows as its destination: the region if given, else the country. */
+  const destinationLabel = draft.region.trim() || country?.name || '';
+
+  /**
+   * Everything that follows from the country is applied here, so nobody has to
+   * know that Greece uses the euro or which cover suits it. A name that was
+   * left alone still tracks the country; one the person typed is theirs.
+   */
+  const pickCountry = (next: Country) => {
+    setDraft((d) => {
+      const wasAuto = !d.name.trim() || d.name === findCountry(d.countryCode)?.name;
+      const currency = supportedCurrency(next);
+      return {
+        ...d,
+        countryCode: next.code,
+        coverImage: next.cover,
+        name: wasAuto ? next.name : d.name,
+        extraCurrency: currency && currency !== d.baseCurrency ? currency : d.extraCurrency,
+      };
+    });
+  };
+
   const nights = useMemo(() => {
     if (draft.endDate < draft.startDate) return 0;
     return daysBetweenInclusive(draft.startDate, draft.endDate);
@@ -70,11 +98,11 @@ export function NewTripWizard() {
     const e: Partial<Record<keyof Draft, string>> = {};
     if (step === 0) {
       if (!draft.name.trim()) e.name = 'צריך שם לטיול';
-      if (!draft.destination.trim()) e.destination = 'צריך יעד';
+      if (!draft.countryCode) e.countryCode = 'צריך לבחור מדינה';
     }
     if (step === 1) {
-      if (!draft.startDate) e.startDate = 'צריך תאריך התחלה';
-      if (!draft.endDate) e.endDate = 'צריך תאריך סיום';
+      if (!draft.startDate) e.startDate = 'צריך לבחור תאריך התחלה';
+      if (!draft.endDate) e.endDate = 'צריך לבחור גם את יום הסיום';
       else if (draft.endDate < draft.startDate) e.endDate = 'תאריך הסיום לפני ההתחלה';
       else if (nights > 120) e.endDate = 'טיול ארוך מ-120 יום — כדאי לפצל לשני טיולים';
     }
@@ -100,7 +128,7 @@ export function NewTripWizard() {
 
     const input: CreateTripInput = {
       name: draft.name.trim(),
-      destination: draft.destination.trim(),
+      destination: destinationLabel,
       countryCode: draft.countryCode.trim().toUpperCase().slice(0, 2),
       coverImage: draft.coverImage,
       startDate: draft.startDate,
@@ -165,25 +193,27 @@ export function NewTripWizard() {
               error={errors.name}
               onChange={(e) => patch({ name: e.target.value })}
             />
-            <TextInput
-              label="יעד"
-              required
-              placeholder="למשל: צפון יוון"
-              value={draft.destination}
-              error={errors.destination}
-              onChange={(e) => patch({ destination: e.target.value })}
-            />
-            <TextInput
-              label="קוד מדינה"
-              hint="שתי אותיות, לדגל על כרטיס הטיול. למשל GR, IT, TH"
-              maxLength={2}
-              placeholder="GR"
-              className="uppercase"
+            <CountryPicker
               value={draft.countryCode}
-              onChange={(e) => patch({ countryCode: e.target.value.toUpperCase() })}
+              error={errors.countryCode}
+              onSelect={pickCountry}
             />
 
-            <Field label="תמונת רקע">
+            <TextInput
+              label="אזור או ערים"
+              hint="לא חובה. למשל: סלוניקי, זגוריה ומטאורה"
+              value={draft.region}
+              onChange={(e) => patch({ region: e.target.value })}
+            />
+
+            <Field
+              label="תמונת רקע"
+              hint={
+                country
+                  ? `נבחרה אוטומטית לפי ${country.name} — אפשר להחליף`
+                  : undefined
+              }
+            >
               <div className="grid grid-cols-3 gap-2.5">
                 {COVER_PRESETS.map((preset) => (
                   <button
@@ -216,35 +246,17 @@ export function NewTripWizard() {
 
         {step === 1 && (
           <div className="space-y-5 animate-[slide-up_0.2s_ease-out]">
-            <div className="grid grid-cols-2 gap-3">
-              <TextInput
-                label="תאריך התחלה"
-                type="date"
-                required
-                value={draft.startDate}
-                error={errors.startDate}
-                onChange={(e) => {
-                  const startDate = e.target.value;
-                  patch({
-                    startDate,
-                    endDate: draft.endDate < startDate ? startDate : draft.endDate,
-                  });
-                }}
-              />
-              <TextInput
-                label="תאריך סיום"
-                type="date"
-                required
-                min={draft.startDate}
-                value={draft.endDate}
-                error={errors.endDate}
-                onChange={(e) => patch({ endDate: e.target.value })}
-              />
-            </div>
+            <DateRangePicker
+              start={draft.startDate}
+              end={draft.endDate}
+              today={todayISO()}
+              onChange={(r) => patch({ startDate: r.start, endDate: r.end })}
+            />
+            {errors.endDate && <p className="text-[12px] text-danger">{errors.endDate}</p>}
 
             {nights > 0 && !errors.endDate && (
-              <div className="bg-brand-soft text-brand rounded-2xl px-4 py-3.5 text-[14px]">
-                <p className="font-semibold ltr-nums">
+              <div className="bg-accent-soft text-accent rounded-2xl px-4 py-3.5 text-[14px]">
+                <p className="font-medium ltr-nums">
                   {formatDateRange(draft.startDate, draft.endDate)}
                 </p>
                 <p className="text-[13px] opacity-85 mt-0.5">
@@ -259,7 +271,9 @@ export function NewTripWizard() {
                   <button
                     key={n}
                     type="button"
-                    onClick={() => patch({ endDate: addDays(draft.startDate, n - 1) })}
+                    onClick={() =>
+                      patch({ endDate: addDays(draft.startDate || todayISO(), n - 1) })
+                    }
                     className="px-3 h-9 rounded-xl border border-line text-[13px] font-medium hover:bg-subtle transition"
                   >
                     {pluralDays(n)}
@@ -380,7 +394,7 @@ export function NewTripWizard() {
               />
             </div>
 
-            <Summary draft={draft} nights={nights} />
+            <Summary draft={draft} nights={nights} destination={destinationLabel} />
           </div>
         )}
       </main>
@@ -408,14 +422,22 @@ export function NewTripWizard() {
   );
 }
 
-function Summary({ draft, nights }: { draft: Draft; nights: number }) {
+function Summary({
+  draft,
+  nights,
+  destination,
+}: {
+  draft: Draft;
+  nights: number;
+  destination: string;
+}) {
   const budget = Number(draft.totalBudget) || 0;
   const people = draft.travelerNames.filter((n) => n.trim()).length || 1;
   return (
     <div className="rounded-2xl overflow-hidden border border-line">
       <CoverImage variant={draft.coverImage} rounded={false} className="h-28">
         <div className="h-28 flex flex-col justify-end p-4">
-          <p className="text-white/85 text-[12px]">{draft.destination || 'יעד'}</p>
+          <p className="text-white/85 text-[12px]">{destination || 'יעד'}</p>
           <h2 className="text-white font-semibold text-[17px] truncate">
             {draft.name || 'הטיול שלי'}
           </h2>
