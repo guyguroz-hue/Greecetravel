@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Trash2, Users } from 'lucide-react';
 import { useTripStore } from '@/lib/store/trip-store';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { fetchProfileNames } from '@/lib/supabase/members';
 import { useTripStatus } from '@/lib/store/hooks';
 import { toast } from '@/lib/store/ui-store';
 import { computeBudget } from '@/lib/selectors/budget';
@@ -33,6 +35,35 @@ export function TripsScreen() {
   const router = useRouter();
   const [pendingDelete, setPendingDelete] = useState<Trip | null>(null);
   const today = todayISO();
+  const me = useAuthStore((s) => s.user);
+
+  // Names for trips somebody else created. Only shared trips carry a creator
+  // other than you, so this stays empty for a device-local list.
+  const [creators, setCreators] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    const ids = data.trips
+      .map((t) => t.createdBy)
+      .filter((id): id is string => !!id && id !== me?.id);
+    // Both branches settle after an await, so the effect never sets state
+    // synchronously on the way through.
+    void (async () => {
+      if (ids.length === 0) {
+        if (!cancelled) setCreators((prev) => (prev.size === 0 ? prev : new Map()));
+        return;
+      }
+      try {
+        const names = await fetchProfileNames(ids);
+        if (!cancelled) setCreators(names);
+      } catch (err) {
+        // A missing name is cosmetic; the trip still opens.
+        console.error('[trips] could not resolve creators', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [data.trips, me?.id]);
 
   const trips = useMemo(() => {
     return [...data.trips].sort((a, b) => {
@@ -106,6 +137,11 @@ export function TripsScreen() {
                 today={today}
                 travelers={data.travelers.filter((t) => t.tripId === trip.id).length}
                 expenses={data.expenses.filter((e) => e.tripId === trip.id)}
+                sharedBy={
+                  trip.createdBy && trip.createdBy !== me?.id
+                    ? (creators.get(trip.createdBy) ?? 'מישהו אחר')
+                    : undefined
+                }
                 onOpen={() => open(trip.id)}
                 onDelete={() => setPendingDelete(trip)}
               />
@@ -176,6 +212,7 @@ function TripCard({
   today,
   travelers,
   expenses,
+  sharedBy,
   onOpen,
   onDelete,
 }: {
@@ -183,6 +220,8 @@ function TripCard({
   today: string;
   travelers: number;
   expenses: Parameters<typeof computeBudget>[1];
+  /** Set when someone else created this trip and shared it with you. */
+  sharedBy?: string;
   onOpen: () => void;
   onDelete: () => void;
 }) {
@@ -223,6 +262,12 @@ function TripCard({
             <p className="mt-2 text-[13px] font-light text-white/75 ltr-nums">
               {formatDateRange(trip.startDate, trip.endDate)}
             </p>
+            {sharedBy && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-light text-white/70">
+                <Users className="size-3.5 shrink-0" />
+                שותף איתך על ידי {sharedBy}
+              </p>
+            )}
           </div>
         </CoverImage>
 

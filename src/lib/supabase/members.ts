@@ -202,3 +202,30 @@ export function inviteLink(token: string): string {
   if (typeof window === 'undefined') return '';
   return `${window.location.origin}/join?token=${token}`;
 }
+
+/**
+ * Display names for a set of user ids, for showing who owns a shared trip.
+ *
+ * Only profiles the caller is allowed to see come back — the policy limits
+ * that to yourself and people you share a trip with — so an id with no row
+ * simply has no name, and callers fall back rather than inventing one.
+ */
+export async function fetchProfileNames(ids: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return new Map();
+
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, full_name')
+    .in('id', unique);
+  if (error) throw error;
+
+  return new Map(
+    (data ?? []).map((p) => {
+      const email = (p.email as string) ?? '';
+      const name = (p.full_name as string) || email.split('@')[0] || '';
+      return [p.id as string, name];
+    })
+  );
+}

@@ -3,12 +3,10 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
-import { ArrowRight, Luggage, Undo2 } from 'lucide-react';
+import { ArrowRight, Luggage } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { PRIMARY_NAV, SECONDARY_NAV } from './nav-items';
 import { useActiveTrip, useTripStatus } from '@/lib/store/hooks';
-import { useTripStore } from '@/lib/store/trip-store';
-import { toast } from '@/lib/store/ui-store';
 import { countryFlag } from '@/lib/utils/format';
 import { formatDateRange } from '@/lib/utils/date';
 import { LoadingScreen } from '@/components/ui/Feedback';
@@ -108,31 +106,34 @@ function Header({
           {subtitle && <p className="text-[12px] text-muted truncate">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <UndoButton />
           {actions}
+          <TripsButton />
         </div>
       </div>
     </header>
   );
 }
 
-function UndoButton() {
-  const undoCount = useTripStore((s) => s.undoStack.length);
-  const undo = useTripStore((s) => s.undo);
-  if (undoCount === 0) return null;
+/**
+ * Always present, on every screen inside a trip: the way back out to the list
+ * of trips.
+ *
+ * It replaces an unlabelled undo arrow that used to sit here. Right after
+ * creating a trip the last undoable action IS the creation, so the arrow read
+ * as "cancel this trip" — and pressing it did exactly that. Undo still exists
+ * where it belongs: on the toast of the action it would undo, which says what
+ * it is about to reverse.
+ */
+function TripsButton() {
   return (
-    <button
-      type="button"
-      onClick={() => {
-        const label = undo();
-        if (label) toast.show(`בוטל: ${label}`);
-      }}
-      aria-label="בטל פעולה אחרונה"
-      title="בטל פעולה אחרונה"
+    <Link
+      href="/"
+      aria-label="הטיולים שלי"
+      title="הטיולים שלי"
       className="size-9 grid place-items-center rounded-xl text-muted hover:bg-subtle hover:text-ink transition"
     >
-      <Undo2 className="size-[18px]" />
-    </button>
+      <Luggage className="size-[18px] stroke-[1.5]" />
+    </Link>
   );
 }
 

@@ -84,6 +84,9 @@ export const tripMapper: Mapper<Trip> = {
     notes: str(r.notes),
     createdAt: String(r.created_at ?? new Date().toISOString()),
     updatedAt: String(r.updated_at ?? new Date().toISOString()),
+    // Read only. `toRow` deliberately omits it so an upsert can never rewrite
+    // who created a trip.
+    createdBy: str(r.created_by),
   }),
 };
 

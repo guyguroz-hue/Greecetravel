@@ -186,6 +186,11 @@ export interface Trip {
   updatedAt: ISODateTime;
   /** Ordered list of the trip's main stops, used by the map route line. */
   route?: string[];
+  /**
+   * Who created the trip, in cloud mode. Read-only: a trigger sets it and the
+   * app never sends it, so it is absent on device-local trips.
+   */
+  createdBy?: string;
 }
 
 export interface Day {
