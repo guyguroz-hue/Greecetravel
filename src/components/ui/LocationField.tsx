@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Check, LocateFixed, MapPin, Search, X } from 'lucide-react';
+import { Check, ExternalLink, LocateFixed, MapPin, Search, X } from 'lucide-react';
 import { searchPlaces, type PlaceResult } from '@/lib/services/places-search';
 import { useSettingsStore } from '@/lib/store/ui-store';
 import type { GeoPoint } from '@/lib/types';
@@ -58,6 +58,9 @@ export function LocationField({
   // saved activity must not fire a lookup for text that already has a pin.
   const [query, setQuery] = useState<string | null>(null);
   const [shortLink, setShortLink] = useState(false);
+  // Set once a search has actually run and come back with nothing, so the
+  // fallback is offered only after the free index really has been asked.
+  const [emptyFor, setEmptyFor] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,6 +76,7 @@ export function LocationField({
       if (q.length < 3 || !onlineSearch || /https?:\/\//i.test(q)) {
         if (!cancelled) {
           setResults([]);
+          setEmptyFor(null);
           setOpen(false);
         }
         return;
@@ -83,6 +87,7 @@ export function LocationField({
         if (cancelled) return;
         setResults(found.slice(0, 6));
         setFailed(onlineFailed);
+        setEmptyFor(found.length === 0 && !onlineFailed ? q : null);
         setOpen(true);
       } finally {
         if (!cancelled) setBusy(false);
@@ -147,9 +152,11 @@ export function LocationField({
               setResults([]);
               setOpen(false);
               setShortLink(false);
+              setEmptyFor(null);
               return;
             }
             setShortLink(isShortMapLink(next));
+            setEmptyFor(null);
             setQuery(next);
             // Editing the text invalidates the pin it came with.
             onChange({ address: next, location: undefined });
@@ -202,6 +209,29 @@ export function LocationField({
       )}
 
       {busy && <p className="text-[11.5px] text-faint">מחפש…</p>}
+
+      {/* OpenStreetMap genuinely does not have every business. Rather than a
+          dead end, hand over to the map that does — and take the pin back by
+          paste. */}
+      {emptyFor && !busy && !location && (
+        <div className="rounded-xl bg-inset px-3 py-2.5">
+          <p className="text-[12px] text-muted leading-relaxed">
+            לא נמצא ב-OpenStreetMap. הרבה מסעדות ועסקים קטנים פשוט לא שם.
+          </p>
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(emptyFor)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-accent"
+          >
+            <ExternalLink className="size-3.5" />
+            חיפוש ״{emptyFor}״ ב-Google Maps
+          </a>
+          <p className="text-[11.5px] text-faint mt-1.5 leading-relaxed">
+            שם מעתיקים את הקישור של המקום ומדביקים כאן — הנקודה תיקלט לבד.
+          </p>
+        </div>
+      )}
 
       {shortLink && (
         <p className="text-[11.5px] text-warning bg-warning-soft rounded-lg px-2.5 py-2 leading-relaxed">
