@@ -27,7 +27,7 @@ export interface PlaceResult {
 export interface SearchProvider {
   readonly id: string;
   readonly label: string;
-  search(query: string, near?: GeoPoint): Promise<PlaceResult[]>;
+  search(query: string, near?: GeoPoint, countryCode?: string): Promise<PlaceResult[]>;
 }
 
 /* ------------------------------------------------------------------ *
@@ -58,13 +58,16 @@ const OSM_CATEGORY: Record<string, ActivityCategory> = {
 export const nominatimProvider: SearchProvider = {
   id: 'nominatim',
   label: 'OpenStreetMap',
-  async search(query, near) {
+  async search(query, near, countryCode) {
     const params = new URLSearchParams({
       q: query,
       format: 'jsonv2',
       addressdetails: '1',
       limit: '8',
     });
+    // A new trip has no coordinates to bias towards, but it does know its
+    // country — enough to keep "the white tower" in Greece.
+    if (countryCode) params.set('countrycodes', countryCode.toLowerCase());
     if (near) {
       const d = 1.5;
       params.set(
@@ -102,11 +105,14 @@ export const nominatimProvider: SearchProvider = {
  */
 export async function searchPlaces(
   query: string,
-  opts: { near?: GeoPoint; online?: boolean } = {}
+  opts: { near?: GeoPoint; online?: boolean; countryCode?: string } = {}
 ): Promise<{ results: PlaceResult[]; onlineFailed: boolean }> {
   if (!opts.online) return { results: [], onlineFailed: false };
   try {
-    return { results: await nominatimProvider.search(query, opts.near), onlineFailed: false };
+    return {
+      results: await nominatimProvider.search(query, opts.near, opts.countryCode),
+      onlineFailed: false,
+    };
   } catch {
     return { results: [], onlineFailed: true };
   }

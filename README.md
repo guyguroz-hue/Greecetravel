@@ -111,7 +111,7 @@ src/
 | התמדה | `LocalStorageRepository` | `SupabaseRepository` | `TripRepository` (`lib/db/repository.ts`) |
 | זמני נסיעה | הערכה מקומית לפי מרחק וסוג דרך | OSRM | `RoutingProvider` (`lib/services/routing.ts`) |
 | שערי מטבע | טבלת שערים ידנית | frankfurter.dev (ECB) | `RatesProvider` (`lib/services/currency.ts`) |
-| חיפוש מקומות | — | OpenStreetMap Nominatim | `SearchProvider` (`lib/services/places-search.ts`) |
+| חיפוש מקומות וגיאוקודינג | — | OpenStreetMap Nominatim | `SearchProvider` (`lib/services/places-search.ts`) |
 | עוזר AI | מנוע דטרמיניסטי מעל נתוני הטיול | מודל שפה | `AssistantProvider` (`lib/services/assistant.ts`) |
 
 הניתוב המקוון כבוי כברירת מחדל וניתן להדליק אותו בהגדרות. חיפוש המקומות דולק כברירת

@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils/cn';
 import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { Field, Select, TextArea, TextInput } from '@/components/ui/Field';
+import { LocationField } from '@/components/ui/LocationField';
 
 export interface ActivityDraft {
   title: string;
@@ -64,6 +65,7 @@ export function ActivitySheet({
   activity,
   days,
   trip,
+  near,
   defaultDayId,
   onSave,
   onDelete,
@@ -73,6 +75,8 @@ export function ActivitySheet({
   activity: Activity | null;
   days: Day[];
   trip: Trip;
+  /** An existing point on this trip, used to bias the location search. */
+  near?: { lat: number; lng: number };
   defaultDayId: string;
   onSave: (draft: ActivityDraft) => void;
   onDelete?: () => void;
@@ -218,11 +222,22 @@ export function ActivitySheet({
           </Select>
         </div>
 
-        <TextInput
-          label="כתובת"
-          placeholder="Metsovo 442 00, Ioannina"
+        <LocationField
           value={draft.address}
-          onChange={(e) => patch({ address: e.target.value })}
+          location={
+            draft.lat && draft.lng
+              ? { lat: Number(draft.lat), lng: Number(draft.lng) }
+              : undefined
+          }
+          near={near}
+          countryCode={trip.countryCode}
+          onChange={({ address, location }: { address: string; location?: { lat: number; lng: number } }) =>
+            patch({
+              address,
+              lat: location ? String(location.lat) : '',
+              lng: location ? String(location.lng) : '',
+            })
+          }
         />
 
         <button
@@ -248,8 +263,8 @@ export function ActivitySheet({
             />
 
             <Field
-              label="מיקום על המפה"
-              hint="אפשר להעתיק קואורדינטות מ-Google Maps, או להוסיף דרך מסך החיפוש"
+              label="קואורדינטות"
+              hint="נמלאות לבד כשבוחרים מקום בשדה הכתובת. כאן רק אם רוצים לדייק ידנית."
               error={touched ? errors.lat : undefined}
             >
               <div className="grid grid-cols-2 gap-3">

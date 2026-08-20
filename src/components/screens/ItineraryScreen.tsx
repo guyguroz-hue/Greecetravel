@@ -98,6 +98,18 @@ export function ItineraryScreen() {
   );
 
   const days = useMemo(() => active?.days ?? [], [active]);
+
+  /**
+   * Somewhere the trip already is, used to bias the location search so the
+   * second activity in a town finds that town. Falls back to the country.
+   */
+  const nearPoint = useMemo(() => {
+    if (!active) return undefined;
+    return (
+      active.activities.find((a) => a.location)?.location ??
+      active.hotels.find((h) => h.location)?.location
+    );
+  }, [active]);
   const currentDay = useMemo(() => {
     if (days.length === 0) return null;
     if (selectedDayId) return days.find((d) => d.id === selectedDayId) ?? days[0];
@@ -321,6 +333,7 @@ export function ItineraryScreen() {
         activity={editing}
         days={days}
         trip={active.trip}
+        near={nearPoint}
         defaultDayId={currentDay?.id ?? days[0]?.id ?? ''}
         onSave={saveDraft}
         onDelete={

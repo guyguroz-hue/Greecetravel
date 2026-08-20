@@ -9,6 +9,7 @@ import { toast } from '@/lib/store/ui-store';
 import {
   CURRENCY_META,
   type CurrencyCode,
+  type GeoPoint,
   type Hotel,
   type Trip,
 } from '@/lib/types';
@@ -28,7 +29,8 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { Card, SectionTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Select, TextArea, TextInput } from '@/components/ui/Field';
+import { Field, Select, TextArea, TextInput } from '@/components/ui/Field';
+import { LocationField } from '@/components/ui/LocationField';
 import { Sheet } from '@/components/ui/Sheet';
 import { ConfirmDialog, EmptyState } from '@/components/ui/Feedback';
 import { Badge, DetailRow } from '@/components/ui/Bits';
@@ -418,10 +420,20 @@ function HotelSheet({
           onChange={(e) => patch({ name: e.target.value })}
         />
         <TextInput label="עיר" value={form.city} onChange={(e) => patch({ city: e.target.value })} />
-        <TextInput
-          label="כתובת"
+        <LocationField
+          label="כתובת המלון"
           value={form.address}
-          onChange={(e) => patch({ address: e.target.value })}
+          location={
+            form.lat && form.lng ? { lat: Number(form.lat), lng: Number(form.lng) } : undefined
+          }
+          countryCode={trip.countryCode}
+          onChange={({ address, location }: { address: string; location?: GeoPoint }) =>
+            patch({
+              address,
+              lat: location ? String(location.lat) : '',
+              lng: location ? String(location.lng) : '',
+            })
+          }
         />
 
         <div className="grid grid-cols-2 gap-3">
@@ -516,22 +528,23 @@ function HotelSheet({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <TextInput
-            label="קו רוחב"
-            inputMode="decimal"
-            placeholder="40.6295"
-            value={form.lat}
-            onChange={(e) => patch({ lat: e.target.value })}
-          />
-          <TextInput
-            label="קו אורך"
-            inputMode="decimal"
-            placeholder="22.9459"
-            value={form.lng}
-            onChange={(e) => patch({ lng: e.target.value })}
-          />
-        </div>
+        {/* Filled in by the address field above; here only to correct by hand. */}
+        <Field label="קואורדינטות" hint="נמלאות לבד כשבוחרים מקום בשדה הכתובת.">
+          <div className="grid grid-cols-2 gap-3">
+            <TextInput
+              inputMode="decimal"
+              placeholder="קו רוחב · 40.6295"
+              value={form.lat}
+              onChange={(e) => patch({ lat: e.target.value })}
+            />
+            <TextInput
+              inputMode="decimal"
+              placeholder="קו אורך · 22.9459"
+              value={form.lng}
+              onChange={(e) => patch({ lng: e.target.value })}
+            />
+          </div>
+        </Field>
 
         <TextInput
           label="קישור להזמנה"

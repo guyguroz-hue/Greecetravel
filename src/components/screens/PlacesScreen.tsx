@@ -28,6 +28,7 @@ import {
   type CurrencyCode,
   type Place,
   type PlaceList,
+  type GeoPoint,
   type Trip,
 } from '@/lib/types';
 import { formatDayMonth } from '@/lib/utils/date';
@@ -36,6 +37,7 @@ import { cn } from '@/lib/utils/cn';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Field, Select, TextArea, TextInput } from '@/components/ui/Field';
+import { LocationField } from '@/components/ui/LocationField';
 import { Sheet } from '@/components/ui/Sheet';
 import { ConfirmDialog, EmptyState } from '@/components/ui/Feedback';
 import { Badge } from '@/components/ui/Bits';
@@ -602,26 +604,38 @@ function PlaceSheet({
           ))}
         </Select>
 
-        <TextInput
-          label="כתובת"
+        <LocationField
           value={form.address}
-          onChange={(e) => patch({ address: e.target.value })}
+          location={
+            form.lat && form.lng ? { lat: Number(form.lat), lng: Number(form.lng) } : undefined
+          }
+          countryCode={trip.countryCode}
+          onChange={({ address, location }: { address: string; location?: GeoPoint }) =>
+            patch({
+              address,
+              lat: location ? String(location.lat) : '',
+              lng: location ? String(location.lng) : '',
+            })
+          }
         />
 
-        <div className="grid grid-cols-2 gap-3">
-          <TextInput
-            label="קו רוחב"
-            inputMode="decimal"
-            value={form.lat}
-            onChange={(e) => patch({ lat: e.target.value })}
-          />
-          <TextInput
-            label="קו אורך"
-            inputMode="decimal"
-            value={form.lng}
-            onChange={(e) => patch({ lng: e.target.value })}
-          />
-        </div>
+        {/* Filled in by the address field above; here only to correct by hand. */}
+        <Field label="קואורדינטות" hint="נמלאות לבד כשבוחרים מקום בשדה הכתובת.">
+          <div className="grid grid-cols-2 gap-3">
+            <TextInput
+              inputMode="decimal"
+              placeholder="קו רוחב"
+              value={form.lat}
+              onChange={(e) => patch({ lat: e.target.value })}
+            />
+            <TextInput
+              inputMode="decimal"
+              placeholder="קו אורך"
+              value={form.lng}
+              onChange={(e) => patch({ lng: e.target.value })}
+            />
+          </div>
+        </Field>
 
         <div className="grid grid-cols-3 gap-3">
           <TextInput
