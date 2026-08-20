@@ -111,11 +111,18 @@ src/
 | התמדה | `LocalStorageRepository` | `SupabaseRepository` | `TripRepository` (`lib/db/repository.ts`) |
 | זמני נסיעה | הערכה מקומית לפי מרחק וסוג דרך | OSRM | `RoutingProvider` (`lib/services/routing.ts`) |
 | שערי מטבע | טבלת שערים ידנית | frankfurter.dev (ECB) | `RatesProvider` (`lib/services/currency.ts`) |
-| חיפוש מקומות וגיאוקודינג | — | OpenStreetMap Nominatim | `SearchProvider` (`lib/services/places-search.ts`) |
+| חיפוש מקומות וגיאוקודינג | הדבקת קישור או קואורדינטות מ-Google Maps | OpenStreetMap Nominatim | `SearchProvider` (`lib/services/places-search.ts`) |
 | עוזר AI | מנוע דטרמיניסטי מעל נתוני הטיול | מודל שפה | `AssistantProvider` (`lib/services/assistant.ts`) |
 
 הניתוב המקוון כבוי כברירת מחדל וניתן להדליק אותו בהגדרות. חיפוש המקומות דולק כברירת
-מחדל, כי הוא המקור היחיד לתוצאות.
+מחדל, כי הוא המקור העיקרי לתוצאות.
+
+> **OpenStreetMap חלש בעסקים.** מסעדות, בתי קפה ומלונות קטנים פשוט לא תמיד שם, בעוד
+> שב-Google Maps הם כן. לכן שדה המיקום מקבל גם **הדבקה מ-Google Maps** — קישור מלא או
+> זוג קואורדינטות הופכים לנקודה מיד, בלי מפתח API ובלי קריאת רשת
+> (`lib/utils/map-links.ts`). קישור **מקוצר** (`maps.app.goo.gl`) לא מכיל את הנקודה,
+> ואי אפשר לעקוב אחריו מהדפדפן — המסך אומר את זה במקום להיכשל בשקט.
+> מעבר ל-Google Places הוא מימוש אחד של `SearchProvider`, ודורש מפתח וחשבון חיוב.
 
 ### ה-backend
 

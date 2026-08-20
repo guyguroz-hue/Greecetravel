@@ -5,6 +5,12 @@ import { Check, LocateFixed, MapPin, Search, X } from 'lucide-react';
 import { searchPlaces, type PlaceResult } from '@/lib/services/places-search';
 import { useSettingsStore } from '@/lib/store/ui-store';
 import type { GeoPoint } from '@/lib/types';
+import {
+  formatCoords,
+  isShortMapLink,
+  parseMapLabel,
+  parseMapLocation,
+} from '@/lib/utils/map-links';
 import { cn } from '@/lib/utils/cn';
 
 /**
@@ -18,6 +24,11 @@ import { cn } from '@/lib/utils/cn';
  *
  * Results are biased towards `near` (the trip's own area) so "the white tower"
  * finds the one in Thessaloniki rather than the one across the world.
+ *
+ * The search looks at OpenStreetMap, which is thin on businesses — restaurants
+ * and small hotels are often simply not there. So the field also takes a pin
+ * pasted straight out of Google Maps: a link or a coordinate pair is turned
+ * into a location on the spot, with no lookup at all.
  */
 export function LocationField({
   label = 'כתובת או מקום',
@@ -46,6 +57,7 @@ export function LocationField({
   // Only a query the person is actively typing should search. Re-opening a
   // saved activity must not fire a lookup for text that already has a pin.
   const [query, setQuery] = useState<string | null>(null);
+  const [shortLink, setShortLink] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,7 +67,10 @@ export function LocationField({
     // Everything settles inside the timer, so the effect never sets state on
     // its way through — a short query just clears the list a tick later.
     const timer = setTimeout(async () => {
-      if (q.length < 3 || !onlineSearch) {
+      // A URL that got this far carries no readable pin (a short link, say).
+      // Searching a place index for it returns noise and hides the message
+      // explaining what to do instead.
+      if (q.length < 3 || !onlineSearch || /https?:\/\//i.test(q)) {
         if (!cancelled) {
           setResults([]);
           setOpen(false);
@@ -124,6 +139,17 @@ export function LocationField({
           autoComplete="off"
           onChange={(e) => {
             const next = e.target.value;
+            const pasted = parseMapLocation(next);
+            if (pasted) {
+              // A pin arrived complete; there is nothing to look up.
+              onChange({ address: parseMapLabel(next) ?? formatCoords(pasted), location: pasted });
+              setQuery(null);
+              setResults([]);
+              setOpen(false);
+              setShortLink(false);
+              return;
+            }
+            setShortLink(isShortMapLink(next));
             setQuery(next);
             // Editing the text invalidates the pin it came with.
             onChange({ address: next, location: undefined });
@@ -176,6 +202,19 @@ export function LocationField({
       )}
 
       {busy && <p className="text-[11.5px] text-faint">מחפש…</p>}
+
+      {shortLink && (
+        <p className="text-[11.5px] text-warning bg-warning-soft rounded-lg px-2.5 py-2 leading-relaxed">
+          קישור מקוצר של Google Maps לא מכיל את הנקודה עצמה, ולכן אי אפשר לקרוא ממנו מיקום.
+          פתחו אותו ב-Google Maps, לחצו לחיצה ארוכה על הסימון, והעתיקו את הקואורדינטות.
+        </p>
+      )}
+
+      {!value && !busy && (
+        <p className="text-[11.5px] text-faint leading-relaxed">
+          אפשר גם להדביק כאן קישור או קואורדינטות מ-Google Maps.
+        </p>
+      )}
 
       {!onlineSearch && (
         <p className="text-[11.5px] text-faint leading-relaxed">
