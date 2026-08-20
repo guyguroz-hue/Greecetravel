@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
-import { ArrowRight, Luggage } from 'lucide-react';
+import { ArrowRight, Camera, Luggage } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { PRIMARY_NAV, SECONDARY_NAV } from './nav-items';
 import { useActiveTrip, useTripStatus } from '@/lib/store/hooks';
 import { countryFlag } from '@/lib/utils/format';
 import { formatDateRange } from '@/lib/utils/date';
 import { LoadingScreen } from '@/components/ui/Feedback';
+import { ReceiptCapture, useReceiptCapture } from '@/components/budget/ReceiptCapture';
 
 /**
  * The shell every trip screen lives in: a sidebar on desktop, a tab bar on
@@ -34,6 +35,7 @@ export function AppShell({
   const status = useTripStatus();
   const active = useActiveTrip();
   const router = useRouter();
+  const receipt = useReceiptCapture();
 
   // No trip selected once hydration settled — send the user to pick one.
   useEffect(() => {
@@ -58,7 +60,7 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh flex">
-      <DesktopSidebar />
+      <DesktopSidebar onCapture={receipt.open} />
 
       <div className="flex-1 min-w-0 flex flex-col lg:ps-64">
         <Header title={title} subtitle={subtitle} actions={actions} backHref={backHref} />
@@ -73,7 +75,17 @@ export function AppShell({
         </main>
       </div>
 
-      <MobileTabBar />
+      <MobileTabBar onCapture={receipt.open} />
+
+      {receipt.input}
+      {receipt.file && (
+        <ReceiptCapture
+          file={receipt.file}
+          trip={active.trip}
+          travelers={active.travelers}
+          onDone={receipt.close}
+        />
+      )}
     </div>
   );
 }
@@ -137,7 +149,7 @@ function TripsButton() {
   );
 }
 
-function DesktopSidebar() {
+function DesktopSidebar({ onCapture }: { onCapture: () => void }) {
   const pathname = usePathname();
   const active = useActiveTrip();
 
@@ -175,6 +187,16 @@ function DesktopSidebar() {
         {PRIMARY_NAV.filter((i) => i.href !== '/more').map((item) => (
           <SidebarLink key={item.href} item={item} pathname={pathname} />
         ))}
+        {/* On a desktop the file picker opens instead of a camera, which is
+            still the fastest way in for a photo already on the machine. */}
+        <button
+          type="button"
+          onClick={onCapture}
+          className="w-full flex items-center gap-3 h-10 px-3 rounded-xl text-[14px] font-medium text-accent hover:bg-subtle transition"
+        >
+          <Camera className="size-[18px] shrink-0" />
+          צילום חשבונית
+        </button>
         <div className="h-px bg-line my-2.5 mx-2" />
         {SECONDARY_NAV.map((item) => (
           <SidebarLink key={item.href} item={item} pathname={pathname} />
@@ -208,11 +230,41 @@ function SidebarLink({
   );
 }
 
-function MobileTabBar() {
+/**
+ * The camera, in the middle of the tab bar.
+ *
+ * It is an action sitting in a row of destinations, so it is deliberately
+ * built to not look like a tab: a filled circle lifted above the bar, with
+ * the label underneath in the same place as the others so the row still
+ * reads as one row. Photographing a bill happens standing at a table with
+ * one hand — it earns the easiest place to hit on the screen.
+ */
+function CaptureTab({ onCapture }: { onCapture: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onCapture}
+      aria-label="צילום חשבונית"
+      className="flex-1 flex flex-col items-center justify-center gap-0.5 h-[3.75rem] group"
+    >
+      <span className="size-[30px] -mt-1 rounded-full bg-accent text-white grid place-items-center shadow-raised transition group-active:scale-95">
+        <Camera className="size-[17px] stroke-[1.8]" />
+      </span>
+      <span className="text-[10.5px] tracking-[0.02em] font-medium text-accent">חשבונית</span>
+    </button>
+  );
+}
+
+function MobileTabBar({ onCapture }: { onCapture: () => void }) {
   const pathname = usePathname();
   const inMoreSection = SECONDARY_NAV.some(
     (i) => pathname === i.href || pathname.startsWith(`${i.href}/`)
   );
+
+  // Slotted between the map and the budget: the receipt turns into a number,
+  // and the number lives on the other side of it.
+  const before = PRIMARY_NAV.slice(0, 3);
+  const after = PRIMARY_NAV.slice(3);
 
   return (
     <nav
@@ -220,7 +272,8 @@ function MobileTabBar() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="flex items-stretch max-w-lg mx-auto">
-        {PRIMARY_NAV.map((item) => {
+        {[...before, null, ...after].map((item) => {
+          if (item === null) return <CaptureTab key="capture" onCapture={onCapture} />;
           const Icon = item.icon;
           const isMore = item.href === '/more';
           const active =

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Trash2 } from 'lucide-react';
 import {
   CURRENCY_META,
@@ -9,6 +9,7 @@ import {
   type CurrencyCode,
   type Expense,
   type ExpenseCategory,
+  type ID,
   type Traveler,
   type Trip,
 } from '@/lib/types';
@@ -43,6 +44,10 @@ export function ExpenseSheet({
   travelers,
   defaults,
   onDelete,
+  title,
+  banner,
+  extra,
+  onSaved,
 }: {
   open: boolean;
   onClose: () => void;
@@ -51,6 +56,14 @@ export function ExpenseSheet({
   travelers: Traveler[];
   defaults?: Partial<Draft>;
   onDelete?: () => void;
+  /** Overrides the heading, for flows that reached this form another way. */
+  title?: string;
+  /** Sits above the fields — used to show what a receipt scan produced. */
+  banner?: ReactNode;
+  /** An extra control at the foot of the form, below the notes. */
+  extra?: ReactNode;
+  /** Called after a successful save, with what was written. */
+  onSaved?: (id: ID, payload: Omit<Expense, 'id' | 'createdAt'>) => void;
 }) {
   const addExpense = useTripStore((s) => s.addExpense);
   const updateExpense = useTripStore((s) => s.updateExpense);
@@ -99,9 +112,11 @@ export function ExpenseSheet({
     };
     if (expense) {
       updateExpense(expense.id, payload);
+      onSaved?.(expense.id, payload);
       toast.success('ההוצאה עודכנה');
     } else {
-      addExpense(payload);
+      const id = addExpense(payload);
+      onSaved?.(id, payload);
       toast.success('ההוצאה נוספה');
     }
     onClose();
@@ -119,7 +134,7 @@ export function ExpenseSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={expense ? 'עריכת הוצאה' : 'הוצאה חדשה'}
+      title={title ?? (expense ? 'עריכת הוצאה' : 'הוצאה חדשה')}
       footer={
         <div className="flex gap-2">
           {onDelete && (
@@ -142,6 +157,8 @@ export function ExpenseSheet({
       }
     >
       <div className="space-y-4 pb-4">
+        {banner}
+
         <TextInput
           label="תיאור"
           required
@@ -295,6 +312,8 @@ export function ExpenseSheet({
           value={draft.notes}
           onChange={(e) => patch({ notes: e.target.value })}
         />
+
+        {extra}
       </div>
     </Sheet>
   );
