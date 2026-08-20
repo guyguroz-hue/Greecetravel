@@ -54,6 +54,7 @@ interface TripState {
   canUndo: () => boolean;
   clearAll: () => Promise<void>;
   importData: (raw: string) => { ok: boolean; message: string };
+  mergeData: (raw: string) => { ok: boolean; message: string };
   exportData: () => string;
 
   /* trips */
@@ -367,6 +368,77 @@ export const useTripStore = create<TripState>()((set, get) => {
       } catch {
         return { ok: false, message: 'לא הצלחנו לקרוא את הקובץ.' };
       }
+    },
+
+    /**
+     * Adds bookings from a file into the trip that is already open.
+     *
+     * `importData` restores a backup, which means it replaces everything —
+     * the only way to get a list of hotels in was to retype them by hand,
+     * because loading a file would have taken the rest of the trip with it.
+     * This adds instead: every row is given a fresh id and pointed at the
+     * open trip, so nothing that is already there is touched, and the whole
+     * thing is one undo away.
+     */
+    mergeData(raw) {
+      const tripId = get().activeTripId;
+      if (!tripId) return { ok: false, message: 'צריך לפתוח טיול לפני הוספה מקובץ.' };
+
+      let parsed: Partial<TripData>;
+      try {
+        parsed = JSON.parse(raw) as Partial<TripData>;
+      } catch {
+        return { ok: false, message: 'לא הצלחנו לקרוא את הקובץ.' };
+      }
+
+      // Only the collections that stand on their own. Days and activities are
+      // left out deliberately: an activity belongs to a specific day of a
+      // specific trip, and guessing which one is how you end up with a
+      // plausible-looking itinerary that is quietly wrong.
+      const MERGEABLE = [
+        { key: 'hotels', prefix: 'htl', label: 'מלונות' },
+        { key: 'flights', prefix: 'flt', label: 'טיסות' },
+        { key: 'cars', prefix: 'car', label: 'רכב' },
+        { key: 'places', prefix: 'plc', label: 'מקומות' },
+        { key: 'expenses', prefix: 'exp', label: 'הוצאות' },
+      ] as const;
+
+      const added: string[] = [];
+      const now = new Date().toISOString();
+
+      mutate('הוספה מקובץ', (draft) => {
+        for (const { key, prefix, label } of MERGEABLE) {
+          const rows = parsed[key];
+          if (!Array.isArray(rows) || rows.length === 0) continue;
+          for (const row of rows) {
+            if (!row || typeof row !== 'object') continue;
+            // A row's own id and tripId are discarded rather than trusted:
+            // the file may well have come from a different trip, or from a
+            // copy of this one, and either would collide.
+            const next = {
+              ...(row as unknown as Record<string, unknown>),
+              id: newId(prefix),
+              tripId,
+            } as never;
+            (draft[key] as unknown[]).push(next);
+          }
+          added.push(`${rows.length} ${label}`);
+        }
+
+        // Expenses carry two fields nothing else does, and a file written by
+        // hand will not have them.
+        for (const e of draft.expenses) {
+          if (!e.createdAt) e.createdAt = now;
+          if (!Array.isArray(e.splitBetween)) e.splitBetween = [];
+        }
+        touchTrip(draft, tripId);
+      });
+
+      if (added.length === 0) {
+        return { ok: false, message: 'לא נמצא בקובץ שום דבר להוסיף.' };
+      }
+      schedulePersist();
+      return { ok: true, message: `נוספו: ${added.join(' · ')}` };
     },
 
     /* ---------------------------- trips ---------------------------- */

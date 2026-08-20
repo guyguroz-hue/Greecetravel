@@ -24,11 +24,19 @@ export interface NavItem {
   icon: LucideIcon;
 }
 
-/** The five slots on the mobile tab bar. */
+/**
+ * The four destinations on the mobile tab bar, with the receipt camera
+ * inserted between them as the middle slot.
+ *
+ * The map used to hold that slot. It is a screen you open deliberately, once,
+ * when you want to see the shape of the trip — not something worth a
+ * permanent thumb position — so it moved in with the rest of the planning
+ * screens. Photographing a bill is the opposite: it happens at a table, in
+ * the moment, and the moment passes.
+ */
 export const PRIMARY_NAV: NavItem[] = [
   { href: '/dashboard', label: 'בית', icon: Home },
   { href: '/itinerary', label: 'מסלול', icon: Calendar },
-  { href: '/map', label: 'מפה', icon: Map },
   { href: '/budget', label: 'תקציב', icon: Wallet },
   { href: '/more', label: 'עוד', icon: MoreHorizontal },
 ];
@@ -59,6 +67,7 @@ export const SECONDARY_GROUPS: NavGroup[] = [
   {
     title: 'התכנון',
     items: [
+      { href: '/map', label: 'מפה', icon: Map },
       { href: '/today', label: 'היום', icon: Sun },
       { href: '/places', label: 'מקומות', icon: Heart },
       { href: '/search', label: 'חיפוש והוספה', icon: Search },

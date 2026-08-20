@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   Check,
   Download,
+  FilePlus,
   Globe,
   Moon,
   Pencil,
@@ -44,6 +45,8 @@ export function SettingsScreen() {
   const removeTraveler = useTripStore((s) => s.removeTraveler);
   const exportData = useTripStore((s) => s.exportData);
   const importData = useTripStore((s) => s.importData);
+  const mergeData = useTripStore((s) => s.mergeData);
+  const undo = useTripStore((s) => s.undo);
   const clearAll = useTripStore((s) => s.clearAll);
 
   const settings = useSettingsStore();
@@ -53,6 +56,7 @@ export function SettingsScreen() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const mergeInput = useRef<HTMLInputElement>(null);
 
   if (!active) return null;
   const { trip, travelers } = active;
@@ -83,6 +87,26 @@ export function SettingsScreen() {
     if (fileInput.current) fileInput.current.value = '';
   };
 
+  const doMerge = async (file: File | undefined) => {
+    if (!file) return;
+    const text = await file.text();
+    const result = mergeData(text);
+    if (result.ok) {
+      toast.show(result.message, {
+        action: {
+          label: 'בטל',
+          onClick: () => {
+            undo();
+            toast.success('ההוספה בוטלה');
+          },
+        },
+      });
+    } else {
+      toast.error(result.message);
+    }
+    if (mergeInput.current) mergeInput.current.value = '';
+  };
+
   const doRefreshRates = async () => {
     setRefreshing(true);
     try {
@@ -108,6 +132,13 @@ export function SettingsScreen() {
         accept="application/json,.json"
         className="sr-only"
         onChange={(e) => void doImport(e.target.files?.[0])}
+      />
+      <input
+        ref={mergeInput}
+        type="file"
+        accept="application/json,.json"
+        className="sr-only"
+        onChange={(e) => void doMerge(e.target.files?.[0])}
       />
 
       <CloudAccountCard />
@@ -394,6 +425,23 @@ export function SettingsScreen() {
               <Upload className="size-4" />
               ייבוא גיבוי
             </Button>
+          </div>
+
+          {/* Restoring a backup replaces everything, which is right for a
+              backup and useless for a list of bookings someone prepared. */}
+          <div className="pt-1.5">
+            <Button
+              variant="secondary"
+              onClick={() => mergeInput.current?.click()}
+              className="w-full"
+            >
+              <FilePlus className="size-4" />
+              הוספת הזמנות מקובץ
+            </Button>
+            <p className="text-[11.5px] text-faint leading-relaxed pt-2">
+              מוסיף מלונות, טיסות, רכב, מקומות והוצאות מקובץ אל הטיול הפתוח — בלי למחוק שום דבר
+              קיים, ועם אפשרות לבטל מיד.
+            </p>
           </div>
 
           {/* Wiping only makes sense for device-local data — in cloud mode it

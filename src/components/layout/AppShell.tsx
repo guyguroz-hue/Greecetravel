@@ -261,10 +261,10 @@ function MobileTabBar({ onCapture }: { onCapture: () => void }) {
     (i) => pathname === i.href || pathname.startsWith(`${i.href}/`)
   );
 
-  // Slotted between the map and the budget: the receipt turns into a number,
-  // and the number lives on the other side of it.
-  const before = PRIMARY_NAV.slice(0, 3);
-  const after = PRIMARY_NAV.slice(3);
+  // Dead centre of the row, with two destinations either side of it.
+  const middle = Math.floor(PRIMARY_NAV.length / 2);
+  const before = PRIMARY_NAV.slice(0, middle);
+  const after = PRIMARY_NAV.slice(middle);
 
   return (
     <nav
