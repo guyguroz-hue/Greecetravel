@@ -1,71 +1,76 @@
 'use client';
 
-import { parseReceipt, type ReceiptFields } from './receipt-parse';
+import { parseReceipt, hasTotalKeyword, countMoneyTokens, type ReceiptFields } from './receipt-parse';
+import { prepareReceiptImage } from './image-prep';
+import {
+  candidateLanguages,
+  GOOD_ENOUGH,
+  RECEIPT_LANGUAGES,
+  scoreReading,
+  TOO_POOR,
+} from './receipt-langs';
 
 /**
  * Reading a receipt photo, on the device.
  *
- * Recognition runs in a web worker in the browser through Tesseract — the
- * photo never leaves the phone, there is no API key, no account and no card
- * on file. The cost is a one-time download of the engine and the language
- * data (roughly 12MB), cached by the browser afterwards, and accuracy that is
- * good on printed digits and patchy on words. The parser downstream is built
- * around exactly that trade: it leans on the numbers and treats every word as
- * a hint that might be wrong.
+ * Recognition runs in a web worker through Tesseract — the photo never leaves
+ * the phone, there is no API key, no account and no card on file. The cost is
+ * a one-time download of the engine and language data, and accuracy that is
+ * good on printed digits and patchy on words.
+ *
+ * Three things stand between the camera and the parser, and all three exist
+ * because the naive version of this was unusable:
+ *
+ *  1. The photo is normalised first (see `image-prep`). Handed a raw photo,
+ *     the engine reads something different every time the light moves.
+ *  2. The language is decided by trying and scoring rather than assumed from
+ *     the destination (see `receipt-langs`). Reading Hebrew with Greek data
+ *     does not degrade gracefully; it produces confident nonsense.
+ *  3. A reading that scores too poorly is reported as a failure instead of
+ *     being handed on. A wrong total that looks plausible is worse than an
+ *     empty field, because it gets confirmed without being read.
  *
  * Everything is behind `ReceiptReader`, so a cloud model can be dropped in
- * later by implementing one method — the capture flow and the parser do not
- * change.
+ * later by implementing one method.
  */
 
-export type OcrStage = 'loading' | 'reading' | 'done';
+export type OcrStage = 'preparing' | 'loading' | 'reading' | 'done';
 
 export interface OcrProgress {
   stage: OcrStage;
   /** 0–1 within the current stage, when the engine reports it. */
   ratio: number;
+  /** Which language this pass is trying, so the UI can say so. */
+  language?: string;
+  /** 1-based, out of `passes`, when more than one language is being tried. */
+  pass?: number;
+  passes?: number;
+}
+
+export interface ReadOptions {
+  countryCode?: string;
+  locale?: string;
+  /** True while the trip is running; puts the destination's language first. */
+  away?: boolean;
+  /** Overrides detection entirely — what the "read it as…" buttons pass. */
+  forceLanguage?: string;
+  signal?: AbortSignal;
+  onProgress?: (p: OcrProgress) => void;
+}
+
+export interface RawReading {
+  text: string;
+  /** Tesseract's own mean confidence, 0–100. */
+  confidence: number;
+  /** The winning language key, e.g. `heb`. */
+  language: string;
+  /** Our own 0–1 judgement of the reading. */
+  score: number;
 }
 
 export interface ReceiptReader {
   readonly id: string;
-  read(
-    image: Blob,
-    opts?: { countryCode?: string; signal?: AbortSignal; onProgress?: (p: OcrProgress) => void }
-  ): Promise<string>;
-}
-
-/**
- * Tesseract language data for a country, on top of English.
- *
- * English alone reads Latin digits everywhere, which is most of what a
- * receipt is worth. A second language is only added where the alphabet is
- * different enough that the shop's name and the word for "total" would
- * otherwise come back as noise — each one is another few MB to download.
- */
-const COUNTRY_LANG: Record<string, string> = {
-  GR: 'ell',
-  IL: 'heb',
-  CY: 'ell',
-  RU: 'rus',
-  BG: 'bul',
-  RS: 'srp',
-  UA: 'ukr',
-  TH: 'tha',
-  JP: 'jpn',
-  CN: 'chi_sim',
-  KR: 'kor',
-  AE: 'ara',
-  EG: 'ara',
-  MA: 'ara',
-  JO: 'ara',
-  IN: 'hin',
-  GE: 'kat',
-  AM: 'hye',
-};
-
-export function languagesFor(countryCode?: string): string {
-  const extra = countryCode ? COUNTRY_LANG[countryCode.toUpperCase()] : undefined;
-  return extra ? `eng+${extra}` : 'eng';
+  read(image: Blob, opts?: ReadOptions): Promise<RawReading>;
 }
 
 class AbortedError extends Error {
@@ -79,37 +84,104 @@ export function isAborted(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortedError';
 }
 
+/**
+ * The language that worked last time, so the second receipt of a holiday does
+ * not pay for detection again. Cleared when the person forces a language, and
+ * naturally gone on reload — it is a shortcut, never a decision.
+ */
+let lastGoodLanguage: string | null = null;
+
+export function rememberedLanguage(): string | null {
+  return lastGoodLanguage;
+}
+
+export function forgetLanguage() {
+  lastGoodLanguage = null;
+}
+
 export const tesseractReader: ReceiptReader = {
   id: 'tesseract',
   async read(image, opts = {}) {
-    const { countryCode, signal, onProgress } = opts;
-    if (signal?.aborted) throw new AbortedError();
+    const { signal, onProgress } = opts;
+    const stop = () => {
+      if (signal?.aborted) throw new AbortedError();
+    };
+    stop();
 
     // Imported here rather than at the top so the engine is fetched the first
     // time somebody photographs a receipt, and never for anyone who does not.
     const { createWorker } = await import('tesseract.js');
-    if (signal?.aborted) throw new AbortedError();
+    stop();
 
-    onProgress?.({ stage: 'loading', ratio: 0 });
-
-    const worker = await createWorker(languagesFor(countryCode), 1, {
-      logger: (m: { status?: string; progress?: number }) => {
-        const ratio = typeof m.progress === 'number' ? m.progress : 0;
-        if (m.status === 'recognizing text') onProgress?.({ stage: 'reading', ratio });
-        else onProgress?.({ stage: 'loading', ratio });
-      },
+    let candidates = candidateLanguages({
+      countryCode: opts.countryCode,
+      locale: opts.locale,
+      away: opts.away,
+      forced: opts.forceLanguage,
     });
-
-    try {
-      if (signal?.aborted) throw new AbortedError();
-      const { data } = await worker.recognize(image);
-      onProgress?.({ stage: 'done', ratio: 1 });
-      return data.text ?? '';
-    } finally {
-      // Frees the worker thread and its several megabytes of WASM heap. A
-      // failed read must not leak one, or a few retries exhaust the tab.
-      await worker.terminate().catch(() => {});
+    // A language already proven on this device goes first — but the others
+    // stay behind it, because the next receipt may well be from elsewhere.
+    if (!opts.forceLanguage && lastGoodLanguage) {
+      candidates = [lastGoodLanguage, ...candidates.filter((c) => c !== lastGoodLanguage)];
     }
+
+    let best: RawReading | null = null;
+
+    for (let i = 0; i < candidates.length; i++) {
+      stop();
+      const key = candidates[i];
+      const lang = RECEIPT_LANGUAGES[key];
+      if (!lang) continue;
+
+      onProgress?.({
+        stage: 'loading',
+        ratio: 0,
+        language: key,
+        pass: i + 1,
+        passes: candidates.length,
+      });
+
+      const worker = await createWorker(lang.code, 1, {
+        logger: (m: { status?: string; progress?: number }) => {
+          const ratio = typeof m.progress === 'number' ? m.progress : 0;
+          onProgress?.({
+            stage: m.status === 'recognizing text' ? 'reading' : 'loading',
+            ratio,
+            language: key,
+            pass: i + 1,
+            passes: candidates.length,
+          });
+        },
+      });
+
+      try {
+        stop();
+        const { data } = await worker.recognize(image);
+        const text = data.text ?? '';
+        const confidence = typeof data.confidence === 'number' ? data.confidence : 0;
+        const { score } = scoreReading(
+          text,
+          confidence,
+          key,
+          hasTotalKeyword(text),
+          countMoneyTokens(text)
+        );
+
+        if (!best || score > best.score) best = { text, confidence, language: key, score };
+        // Convincing enough that trying another language would only cost the
+        // person another download and another wait.
+        if (score >= GOOD_ENOUGH) break;
+      } finally {
+        // Frees the worker thread and its several megabytes of WASM heap. A
+        // failed read must not leak one, or a few retries exhaust the tab.
+        await worker.terminate().catch(() => {});
+      }
+    }
+
+    if (!best) throw new Error('no language could be tried');
+    onProgress?.({ stage: 'done', ratio: 1, language: best.language });
+    if (best.score >= GOOD_ENOUGH) lastGoodLanguage = best.language;
+    return best;
   },
 };
 
@@ -127,11 +199,11 @@ export function getReceiptReader(): ReceiptReader {
 /**
  * A seam for automated tests, and only for them.
  *
- * Recognition needs a 12MB WASM engine and a photograph of a real receipt,
- * neither of which a browser test can supply, so a test swaps in a reader
- * that returns known text and exercises everything downstream of it. The
- * guard is a compile-time constant, so this block is stripped from production
- * builds rather than shipped as a way to replace the engine at runtime.
+ * Recognition needs a WASM engine and a photograph of a real receipt, neither
+ * of which a browser test can supply, so a test swaps in a reader that returns
+ * known text and exercises everything downstream of it. The guard is a
+ * compile-time constant, so this block is stripped from production builds
+ * rather than shipped as a way to replace the engine at runtime.
  */
 if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
   (window as unknown as Record<string, unknown>).__setReceiptReader = setReceiptReader;
@@ -140,13 +212,38 @@ if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
 export interface ReceiptReading extends ReceiptFields {
   /** The unedited OCR output, shown on request so a bad read is explainable. */
   text: string;
+  language: string;
+  score: number;
+  confidence: number;
+  /**
+   * True when the reading was too poor to trust. The fields are still
+   * returned so they can be shown as "this is what it saw", but the UI must
+   * not put them in the form.
+   */
+  unreliable: boolean;
 }
 
 /** Photo in, a draft expense out. */
-export async function readReceipt(
-  image: Blob,
-  opts: { countryCode?: string; signal?: AbortSignal; onProgress?: (p: OcrProgress) => void } = {}
-): Promise<ReceiptReading> {
-  const text = await reader.read(image, opts);
-  return { ...parseReceipt(text), text };
+export async function readReceipt(image: Blob, opts: ReadOptions = {}): Promise<ReceiptReading> {
+  opts.onProgress?.({ stage: 'preparing', ratio: 0 });
+  const prepared = await prepareReceiptImage(image);
+  if (opts.signal?.aborted) throw new AbortedError();
+
+  const raw = await reader.read(prepared.blob, opts);
+  const unreliable = raw.score < TOO_POOR;
+
+  return {
+    // Guessing at the total is only permitted when the reading convinced us it
+    // read this receipt at all. A pass that never found the word for "total"
+    // has no business nominating the largest number it happens to see.
+    ...parseReceipt(raw.text, {
+      confidence: raw.confidence,
+      guessAllowed: raw.score >= GOOD_ENOUGH,
+    }),
+    text: raw.text,
+    language: raw.language,
+    score: raw.score,
+    confidence: raw.confidence,
+    unreliable,
+  };
 }

@@ -1,9 +1,24 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Camera, Check, ChevronDown, ScanLine } from 'lucide-react';
+import {
+  AlertTriangle,
+  Camera,
+  Check,
+  ChevronDown,
+  Languages,
+  RefreshCw,
+  ScanLine,
+} from 'lucide-react';
 import type { CurrencyCode, ExpenseCategory, Traveler, Trip } from '@/lib/types';
 import { isAborted, readReceipt, type OcrProgress } from '@/lib/services/receipt-ocr';
+import {
+  isAway,
+  languageForCountry,
+  RECEIPT_LANGUAGES,
+} from '@/lib/services/receipt-langs';
+import { previewImage } from '@/lib/services/image-prep';
+import { todayISO } from '@/lib/utils/date';
 import { storeFile } from '@/lib/services/documents';
 import { useTripStore } from '@/lib/store/trip-store';
 import { toast } from '@/lib/store/ui-store';
@@ -27,47 +42,6 @@ import { ExpenseSheet } from './ExpenseSheet';
  * read obvious in the half-second before it matters.
  */
 
-/**
- * A phone camera photo is far larger than recognition needs, and size costs
- * seconds of processing on the device. The long edge is capped at a point
- * where receipt print is still crisp.
- */
-const MAX_EDGE = 2000;
-
-async function prepareImage(file: File): Promise<Blob> {
-  if (typeof createImageBitmap !== 'function') return file;
-  let bitmap: ImageBitmap;
-  try {
-    bitmap = await createImageBitmap(file);
-  } catch {
-    // An image the browser cannot decode here may still decode inside the
-    // worker, so hand the original over rather than failing now.
-    return file;
-  }
-
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-  if (scale === 1) {
-    bitmap.close();
-    return file;
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    bitmap.close();
-    return file;
-  }
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, 'image/jpeg', 0.9)
-  );
-  return blob ?? file;
-}
-
 interface Reading {
   amount?: number;
   currency?: CurrencyCode;
@@ -76,6 +50,9 @@ interface Reading {
   category?: ExpenseCategory;
   amountSource?: 'total-line' | 'largest';
   text: string;
+  language: string;
+  score: number;
+  unreliable: boolean;
 }
 
 export function ReceiptCapture({
@@ -91,14 +68,18 @@ export function ReceiptCapture({
   onDone: () => void;
 }) {
   const addDocument = useTripStore((s) => s.addDocument);
-  const [progress, setProgress] = useState<OcrProgress>({ stage: 'loading', ratio: 0 });
+  const [progress, setProgress] = useState<OcrProgress>({ stage: 'preparing', ratio: 0 });
   const [reading, setReading] = useState<Reading | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [keepPhoto, setKeepPhoto] = useState(true);
   const [preview, setPreview] = useState<string | null>(null);
-  // The downscaled copy: what the engine actually read, and small enough to
-  // be worth keeping as the attachment instead of a 4MB camera original.
+  // A language chosen by hand after a bad read. Changing it re-runs everything.
+  const [forced, setForced] = useState<string | undefined>(undefined);
+  // The readable copy kept as the attachment — the one the engine reads is
+  // black-and-white and unpleasant to look at later.
   const [prepared, setPrepared] = useState<Blob | null>(null);
+
+  const away = isAway(todayISO(), trip.startDate, trip.endDate);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -111,14 +92,19 @@ export function ReceiptCapture({
     // effect that runs twice must not leave the first URL dangling.
     void (async () => {
       try {
-        const image = await prepareImage(file);
+        const shown = await previewImage(file);
         if (cancelled) return;
-        url = URL.createObjectURL(image);
+        url = URL.createObjectURL(shown);
         setPreview(url);
-        setPrepared(image);
+        setPrepared(shown);
+        setReading(null);
+        setFailed(null);
 
-        const result = await readReceipt(image, {
+        const result = await readReceipt(file, {
           countryCode: trip.countryCode,
+          locale: typeof navigator !== 'undefined' ? navigator.language : undefined,
+          away,
+          forceLanguage: forced,
           signal: controller.signal,
           onProgress: (p) => {
             if (!cancelled) setProgress(p);
@@ -142,7 +128,7 @@ export function ReceiptCapture({
       controller.abort();
       if (url) URL.revokeObjectURL(url);
     };
-  }, [file, trip.countryCode]);
+  }, [file, trip.countryCode, trip.startDate, trip.endDate, away, forced]);
 
   /** Keeps the photo alongside the expense, so the bill can be checked later. */
   const savePhoto = async (description: string) => {
@@ -168,8 +154,14 @@ export function ReceiptCapture({
 
   // Read and confirmed enough to fill a form: hand over to the normal expense
   // sheet rather than growing a second one that drifts from it.
+  //
+  // A reading judged unreliable fills nothing. Its fields are still shown, as
+  // "this is what it saw", but they do not reach the inputs — a plausible
+  // wrong total in a filled form gets confirmed without being read, and a
+  // corrupted budget is a worse outcome than typing four characters.
   if (reading) {
-    const description = reading.merchant?.trim() || 'חשבונית';
+    const trusted = !reading.unreliable;
+    const description = (trusted && reading.merchant?.trim()) || 'חשבונית';
     return (
       <ExpenseSheet
         open
@@ -178,7 +170,14 @@ export function ReceiptCapture({
         trip={trip}
         travelers={travelers}
         title="מהחשבונית"
-        banner={<ReadingBanner reading={reading} trip={trip} preview={preview} />}
+        banner={
+          <ReadingBanner
+            reading={reading}
+            trip={trip}
+            preview={preview}
+            onRetryIn={(lang) => setForced(lang)}
+          />
+        }
         extra={
           <label className="flex items-center gap-2.5 py-1 cursor-pointer">
             <input
@@ -193,10 +192,11 @@ export function ReceiptCapture({
         onSaved={(_, saved) => void savePhoto(saved.description || description)}
         defaults={{
           description,
-          amount: reading.amount !== undefined ? String(reading.amount) : '',
-          currency: reading.currency ?? trip.currencies[trip.currencies.length - 1],
-          date: reading.date,
-          category: reading.category ?? 'food',
+          amount: trusted && reading.amount !== undefined ? String(reading.amount) : '',
+          currency:
+            (trusted && reading.currency) || trip.currencies[trip.currencies.length - 1],
+          date: trusted ? reading.date : undefined,
+          category: (trusted && reading.category) || 'food',
           paid: true,
         }}
       />
@@ -245,18 +245,31 @@ export function ReceiptCapture({
 }
 
 function ProgressLine({ progress }: { progress: OcrProgress }) {
+  const lang = progress.language ? RECEIPT_LANGUAGES[progress.language]?.label : undefined;
   const label =
-    progress.stage === 'loading'
-      ? 'מכין את מנוע הזיהוי…'
-      : progress.stage === 'reading'
-        ? 'קורא את הטקסט…'
-        : 'כמעט מוכן…';
+    progress.stage === 'preparing'
+      ? 'מיישר ומנקה את התמונה…'
+      : progress.stage === 'loading'
+        ? lang
+          ? `מכין זיהוי ב${lang}…`
+          : 'מכין את מנוע הזיהוי…'
+        : progress.stage === 'reading'
+          ? lang
+            ? `קורא ב${lang}…`
+            : 'קורא את הטקסט…'
+          : 'כמעט מוכן…';
 
   return (
     <div>
       <div className="flex items-center gap-2 text-[13px] text-muted">
         <ScanLine className="size-4 text-accent animate-pulse" />
         {label}
+        {/* A second pass means the first language did not convince us. */}
+        {progress.passes && progress.passes > 1 && progress.pass && progress.pass > 1 && (
+          <span className="text-[11.5px] text-faint">
+            (ניסיון {progress.pass} מתוך {progress.passes})
+          </span>
+        )}
       </div>
       <div className="mt-2.5 h-1.5 rounded-full bg-inset overflow-hidden">
         <div
@@ -271,18 +284,27 @@ function ProgressLine({ progress }: { progress: OcrProgress }) {
   );
 }
 
-/** What was read, and how sure we are of it. */
+/** What was read, in which language, and how much of it to believe. */
 function ReadingBanner({
   reading,
   trip,
   preview,
+  onRetryIn,
 }: {
   reading: Reading;
   trip: Trip;
   preview: string | null;
+  onRetryIn: (language: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const found = reading.amount !== undefined;
+  const trusted = !reading.unreliable;
+  const found = trusted && reading.amount !== undefined;
+  const langLabel = RECEIPT_LANGUAGES[reading.language]?.label ?? reading.language;
+
+  // The languages worth offering: the destination's, the phone's, and English.
+  const others = Array.from(
+    new Set([languageForCountry(trip.countryCode), 'heb', 'eng'])
+  ).filter((k): k is string => !!k && k !== reading.language && !!RECEIPT_LANGUAGES[k]);
 
   return (
     <div className="rounded-xl bg-inset px-3 py-3 space-y-2.5">
@@ -307,17 +329,39 @@ function ReadingBanner({
           ) : (
             <p className="flex items-center gap-1.5 text-[13px]">
               <AlertTriangle className="size-4 text-warning shrink-0" />
-              לא הצלחנו לזהות את הסכום
+              {trusted ? 'לא הצלחנו לזהות את הסכום' : 'הקריאה לא הצליחה'}
             </p>
           )}
           <p className="text-[11.5px] text-muted mt-1 leading-relaxed">
-            {found && reading.amountSource === 'largest'
-              ? 'לא נמצאה שורת ״סה״כ״ ברורה, אז לקחנו את הסכום הגדול בחשבונית — כדאי לוודא.'
-              : found
-                ? 'כדאי להשוות לחשבונית לפני שמירה.'
-                : 'אפשר להקליד אותו למטה; שאר הפרטים כבר מולאו.'}
+            {!trusted
+              ? `הטקסט שיצא לא נראה כמו חשבונית ב${langLabel}, אז לא מילאנו כלום — עדיף ריק מאשר סכום שגוי. אפשר להקליד ידנית, או לנסות שוב בשפה אחרת.`
+              : found && reading.amountSource === 'largest'
+                ? 'לא נמצאה שורת ״סה״כ״ ברורה, אז לקחנו את הסכום הגדול בתחתית החשבונית — כדאי לוודא.'
+                : found
+                  ? 'כדאי להשוות לחשבונית לפני שמירה.'
+                  : 'אפשר להקליד אותו למטה; שאר הפרטים כבר מולאו.'}
           </p>
         </div>
+      </div>
+
+      {/* The language is the single thing most likely to be wrong, and the
+          person can see at a glance what the engine could not. */}
+      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+        <span className="inline-flex items-center gap-1 text-[11.5px] text-muted">
+          <Languages className="size-3.5" />
+          נקרא כ{langLabel}
+        </span>
+        {others.map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onRetryIn(key)}
+            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-line text-[11.5px] text-muted hover:bg-subtle hover:text-ink transition"
+          >
+            <RefreshCw className="size-3" />
+            נסה ב{RECEIPT_LANGUAGES[key].label}
+          </button>
+        ))}
       </div>
 
       {reading.text.trim() && (

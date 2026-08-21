@@ -186,6 +186,24 @@ function hasWord(folded: string, words: string[]): boolean {
   return words.some((w) => folded.includes(w));
 }
 
+/**
+ * Does the text name a total anywhere? Used to judge a whole OCR pass before
+ * anything is extracted: a receipt read in the right language nearly always
+ * contains its own word for "total", and one read in the wrong language
+ * nearly never does.
+ */
+export function hasTotalKeyword(text: string): boolean {
+  const f = fold(text);
+  return TOTAL_WORDS.some((w) => f.includes(w));
+}
+
+/** How many money-shaped numbers the text holds, as a signal of a real read. */
+export function countMoneyTokens(text: string): number {
+  let n = 0;
+  for (const line of text.split(/\r?\n/)) n += moneyTokens(line).length;
+  return n;
+}
+
 /** The currency, from a symbol or a code anywhere in the text. */
 function findCurrency(text: string): CurrencyCode | undefined {
   for (const [symbol, code] of Object.entries(CURRENCY_BY_SYMBOL)) {
@@ -267,15 +285,39 @@ function findCategory(lines: string[]): ExpenseCategory | undefined {
 }
 
 /**
+ * Confidence below which the fallback is switched off entirely.
+ *
+ * The labelled-total rule needs a word to have survived, so it carries its own
+ * evidence. The fallback does not: it takes the biggest number it can see,
+ * which on a badly read page means the biggest misreading. Two photos of one
+ * receipt then produce two different totals, each stated as fact — the exact
+ * failure this threshold exists to prevent. Below it, no amount is offered at
+ * all and the person types four characters.
+ *
+ * `guessAllowed` closes the same door from the other side: the caller sets it
+ * false when the reading as a whole did not convince, regardless of what the
+ * engine's own confidence claims.
+ */
+const FALLBACK_MIN_CONFIDENCE = 55;
+
+/**
  * The total.
  *
  * First choice is a line that names itself as the total and is not disclaimed
  * by the exclusion list; the last such line wins, because receipts print the
- * final figure lowest. Failing that, the largest number that looks like money
- * — which is right far more often than it is wrong, and is flagged as a guess
- * so the person knows to look.
+ * final figure lowest.
+ *
+ * Failing that, the largest number that looks like money — but only when the
+ * page was read well enough for "largest" to mean anything, and only from the
+ * bottom of the receipt, where the total is. Taking the largest number from
+ * anywhere reads the most expensive line item on a long bill just as happily
+ * as the sum.
  */
-function findAmount(lines: string[]): { amount: number; source: 'total-line' | 'largest' } | undefined {
+function findAmount(
+  lines: string[],
+  confidence: number,
+  guessAllowed: boolean
+): { amount: number; source: 'total-line' | 'largest' } | undefined {
   let labelled: number | undefined;
 
   for (const line of lines) {
@@ -289,8 +331,13 @@ function findAmount(lines: string[]): { amount: number; source: 'total-line' | '
   }
   if (labelled !== undefined) return { amount: labelled, source: 'total-line' };
 
+  if (!guessAllowed || confidence < FALLBACK_MIN_CONFIDENCE) return undefined;
+
+  // The sum is at the foot of the bill. Anything above the last third is a
+  // line item, and on a receipt with one expensive item it beats the total.
+  const from = Math.floor(lines.length * 0.55);
   let best: number | undefined;
-  for (const line of lines) {
+  for (const line of lines.slice(from)) {
     if (hasWord(fold(line), NOT_TOTAL_WORDS)) continue;
     const hasCurrency = /[€$£₪¥₺฿]/.test(line);
     for (const t of moneyTokens(line)) {
@@ -303,13 +350,19 @@ function findAmount(lines: string[]): { amount: number; source: 'total-line' | '
   return best === undefined ? undefined : { amount: best, source: 'largest' };
 }
 
-export function parseReceipt(text: string): ReceiptFields {
+export function parseReceipt(
+  text: string,
+  opts: { confidence?: number; guessAllowed?: boolean } = {}
+): ReceiptFields {
   const lines = text
     .split(/\r?\n/)
     .map((l) => l.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
 
-  const found = findAmount(lines);
+  // Absent options mean a caller that is not the OCR path — a unit test, or
+  // text pasted by hand — where the text is known-good and the fallback is
+  // welcome.
+  const found = findAmount(lines, opts.confidence ?? 100, opts.guessAllowed ?? true);
   return {
     amount: found?.amount,
     amountSource: found?.source,
