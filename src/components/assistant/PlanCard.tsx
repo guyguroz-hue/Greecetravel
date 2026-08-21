@@ -69,7 +69,24 @@ export function PlanCard({ plan }: { plan: PlanLine[] }) {
     });
   };
 
-  if (usable.length === 0) return null;
+  // Nothing survived. The rejections still have to be shown: the person asked
+  // for something and it did not happen, and silence reads as being ignored.
+  if (usable.length === 0) {
+    if (rejected.length === 0) return null;
+    return (
+      <div className="mt-2.5 rounded-xl bg-warning-soft px-2.5 py-2 space-y-1">
+        {rejected.map((line, i) => (
+          <p key={i} className="flex items-start gap-1.5 text-[11.5px] leading-relaxed">
+            <AlertTriangle className="size-3.5 text-warning shrink-0 mt-px" />
+            <span>
+              <span className="font-medium">{line.source}</span>
+              <span className="text-muted"> — {line.problem}</span>
+            </span>
+          </p>
+        ))}
+      </div>
+    );
+  }
 
   if (done !== null) {
     return (

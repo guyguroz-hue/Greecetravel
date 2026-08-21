@@ -15,6 +15,12 @@ import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Feedback';
 import { PlanCard } from '@/components/assistant/PlanCard';
+import { setAssistantProvider } from '@/lib/services/assistant';
+import { remoteAssistant } from '@/lib/services/assistant-remote';
+
+// Wired here rather than inside the service, which would make the module graph
+// circular: the remote provider falls back to the local one and imports it.
+setAssistantProvider(remoteAssistant);
 
 interface Turn {
   id: string;
@@ -29,6 +35,25 @@ export function AssistantScreen() {
   const [busy, setBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const nextTurnId = useRef(0);
+  // null while unknown; the footer must not claim either thing before it is.
+  const [modelOn, setModelOn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch('/api/assistant');
+        const body = (await res.json()) as { configured?: boolean };
+        if (!cancelled) setModelOn(res.ok && body.configured === true);
+      } catch {
+        // No route at all — a static export, or offline.
+        if (!cancelled) setModelOn(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -170,9 +195,15 @@ export function AssistantScreen() {
             </Button>
           </div>
 
+          {/* The honest version of this sentence depends on whether a model is
+              configured, and the person deserves to know which they are in. */}
           <p className="flex items-start gap-1.5 text-[11.5px] text-faint mt-2 px-1 leading-relaxed">
             <Info className="size-3.5 shrink-0 mt-px" />
-            העוזר מחשב תשובות ישירות מנתוני הטיול במכשיר שלך. אין כאן שליחת מידע לשום שירות חיצוני.
+            {modelOn === null
+              ? 'בודק אם מחובר מודל…'
+              : modelOn
+                ? 'כדי לענות, סיכום של הטיול הזה נשלח למודל של Anthropic. הוא לא נשמר שם ולא משמש לאימון. תמונות ומסמכים לא נשלחים.'
+                : 'העוזר מחשב תשובות ישירות מנתוני הטיול במכשיר שלך. אין כאן שליחת מידע לשום שירות חיצוני.'}
           </p>
         </div>
       </div>

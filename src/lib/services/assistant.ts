@@ -595,6 +595,10 @@ export function setAssistantProvider(next: AssistantProvider) {
   provider = next;
 }
 
+export function getAssistantProvider(): AssistantProvider {
+  return provider;
+}
+
 export function askAssistant(question: string, trip: ActiveTrip, today = todayISO()) {
   return provider.ask(question, trip, today);
 }
