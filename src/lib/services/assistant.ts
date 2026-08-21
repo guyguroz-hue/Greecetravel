@@ -22,6 +22,7 @@ import {
   isOverloadedDay,
 } from '@/lib/selectors/itinerary';
 import { computeBalances, computeBudget, computeSettlements } from '@/lib/selectors/budget';
+import { OP_LABEL, planFromText, type PlanLine, type PlanOp } from './assistant-actions';
 
 /**
  * The trip assistant answers *only* from the trip's own data.
@@ -41,6 +42,12 @@ export interface AssistantAnswer {
   link?: { label: string; href: string };
   /** Set when the assistant genuinely has no grounded answer. */
   unknown?: boolean;
+  /**
+   * Things the assistant offers to create, when the input was data rather
+   * than a question. Never applied by the assistant itself — the screen
+   * renders these for confirmation and the store writes them.
+   */
+  plan?: PlanLine[];
 }
 
 export interface AssistantProvider {
@@ -510,6 +517,22 @@ const answerHandlers: {
   },
 ];
 
+/**
+ * Is this text to be filed rather than a question to be answered?
+ *
+ * The tell is shape, not vocabulary. A question is one line and usually ends
+ * in a question mark; pasted data is several lines, or one line carrying both
+ * a number and a date. Guessing wrong in the safe direction costs nothing —
+ * a proposal is shown, not applied — so the test leans towards offering.
+ */
+function looksLikeData(text: string, lines: string[]): boolean {
+  if (/\?\s*$/.test(text.trim())) return false;
+  if (lines.length > 1) return true;
+  // A single line still counts when it carries an amount and a date, which is
+  // what one pasted booking looks like.
+  return /\d/.test(text) && /[./]\d{1,2}\b/.test(text) && /\d{2,}/.test(text);
+}
+
 /** The built-in, fully grounded provider. */
 export const localAssistant: AssistantProvider = {
   id: 'local',
@@ -518,6 +541,42 @@ export const localAssistant: AssistantProvider = {
     if (!q) {
       return { text: 'אפשר לשאול אותי כל דבר על הטיול הזה.', unknown: true };
     }
+
+    // Data first: a paste that also happens to contain a question word must
+    // not be answered as a question and thrown away.
+    const rawLines = question
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    if (looksLikeData(question, rawLines)) {
+      const plan = planFromText(question, {
+        defaultCurrency: trip.trip.baseCurrency,
+        startDate: trip.trip.startDate,
+        endDate: trip.trip.endDate,
+        today,
+      });
+      const understood = plan.filter((l) => l.op).length;
+      if (understood > 0) {
+        const counts = new Map<string, number>();
+        for (const line of plan) {
+          if (!line.op) continue;
+          counts.set(line.op.kind, (counts.get(line.op.kind) ?? 0) + 1);
+        }
+        const summary = [...counts.entries()]
+          .map(([kind, n]) => `${n} ${OP_LABEL[kind as PlanOp['kind']]}${n > 1 ? 'ות' : ''}`)
+          .join(' · ');
+        const missed = plan.length - understood;
+        return {
+          text:
+            `זיהיתי ${summary}. ` +
+            (missed > 0 ? `${missed} שורות לא הצלחתי לקרוא. ` : '') +
+            'עברי על הרשימה ואשר — עד אז לא נגעתי בכלום.',
+          plan,
+        };
+      }
+    }
+
     for (const handler of answerHandlers) {
       if (!handler.match(q)) continue;
       const answer = handler.run(q, trip, today);

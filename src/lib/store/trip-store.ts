@@ -24,6 +24,7 @@ import {
 import { newId } from '@/lib/utils/id';
 import { addDays, daysBetweenInclusive, eachDate } from '@/lib/utils/date';
 import { defaultRates } from '@/lib/services/currency';
+import type { PlanOp } from '@/lib/services/assistant-actions';
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -55,6 +56,7 @@ interface TripState {
   clearAll: () => Promise<void>;
   importData: (raw: string) => { ok: boolean; message: string };
   mergeData: (raw: string) => { ok: boolean; message: string };
+  applyPlan: (ops: PlanOp[]) => { added: number; skipped: string[] };
   exportData: () => string;
 
   /* trips */
@@ -439,6 +441,114 @@ export const useTripStore = create<TripState>()((set, get) => {
       }
       schedulePersist();
       return { ok: true, message: `נוספו: ${added.join(' · ')}` };
+    },
+
+    /**
+     * Writes a plan the assistant proposed and the person confirmed.
+     *
+     * Everything lands in one mutation, so a paste of twenty lines is one
+     * undo rather than twenty. An activity whose date falls outside the trip
+     * is skipped and named, never silently dropped onto the nearest day — a
+     * plausible wrong day is exactly the kind of error nobody finds until
+     * they are standing in the wrong town.
+     */
+    applyPlan(ops) {
+      const tripId = get().activeTripId;
+      if (!tripId) return { added: 0, skipped: ['אין טיול פתוח'] };
+
+      const skipped: string[] = [];
+      let added = 0;
+      const now = new Date().toISOString();
+
+      mutate('הוספה מהעוזר', (draft) => {
+        const trip = draft.trips.find((t) => t.id === tripId);
+        for (const op of ops) {
+          switch (op.kind) {
+            case 'expense':
+              draft.expenses.push({
+                id: newId('exp'),
+                tripId,
+                date: op.date,
+                category: op.category,
+                description: op.description,
+                amount: op.amount,
+                currency: op.currency,
+                paid: op.paid,
+                paidById: draft.travelers.find((t) => t.tripId === tripId)?.id,
+                splitBetween: draft.travelers.filter((t) => t.tripId === tripId).map((t) => t.id),
+                createdAt: now,
+              });
+              added++;
+              break;
+
+            case 'hotel':
+              draft.hotels.push({
+                id: newId('htl'),
+                tripId,
+                name: op.name,
+                city: op.city,
+                checkIn: op.checkIn,
+                checkOut: op.checkOut,
+                totalPrice: op.totalPrice,
+                currency: op.currency,
+                booked: true,
+                paid: op.paid,
+              });
+              added++;
+              break;
+
+            case 'flight':
+              draft.flights.push({
+                id: newId('flt'),
+                tripId,
+                // Which leg this is follows from the date, which is the only
+                // thing a pasted line reliably says about direction.
+                direction:
+                  trip && op.date >= trip.endDate
+                    ? 'return'
+                    : trip && op.date <= trip.startDate
+                      ? 'outbound'
+                      : 'internal',
+                airline: op.airline,
+                flightNumber: op.flightNumber,
+                date: op.date,
+                departureTime: op.departureTime,
+                from: { code: op.fromCode, name: op.fromCode },
+                to: { code: op.toCode, name: op.toCode },
+                price: op.price,
+                currency: op.currency,
+                booked: true,
+              });
+              added++;
+              break;
+
+            case 'activity': {
+              const day = draft.days.find((d) => d.tripId === tripId && d.date === op.date);
+              if (!day) {
+                skipped.push(`${op.title} — ${op.date} מחוץ לתאריכי הטיול`);
+                break;
+              }
+              const order =
+                draft.activities.filter((a) => a.dayId === day.id).length;
+              draft.activities.push({
+                id: newId('act'),
+                tripId,
+                dayId: day.id,
+                title: op.title,
+                category: op.category,
+                startTime: op.startTime,
+                order,
+              });
+              added++;
+              break;
+            }
+          }
+        }
+        touchTrip(draft, tripId);
+      });
+
+      schedulePersist();
+      return { added, skipped };
     },
 
     /* ---------------------------- trips ---------------------------- */

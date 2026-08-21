@@ -127,9 +127,12 @@ export function parseQuickAdd(
   }
   if (!matched.currency) {
     const words: [RegExp, CurrencyCode][] = [
-      [/\bשקל(ים)?\b|\bש"ח\b|\bש״ח\b/, 'ILS'],
-      [/\bאירו\b|\byuro\b|\beuro s?\b/, 'EUR'],
-      [/\bדולר(ים)?\b|\bdollars?\b/, 'USD'],
+      // `\b` is an ASCII-only word boundary, so it never fires beside a
+      // Hebrew letter — these patterns matched nothing until the boundaries
+      // came off.
+      [/שקל(ים)?|ש"ח|ש״ח/, 'ILS'],
+      [/אירו|\byuro\b|\beuros?\b/, 'EUR'],
+      [/דולר(ים)?|\bdollars?\b/, 'USD'],
     ];
     for (const [re, code] of words) {
       if (re.test(rest)) {

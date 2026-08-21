@@ -14,6 +14,7 @@ import { todayISO } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Feedback';
+import { PlanCard } from '@/components/assistant/PlanCard';
 
 interface Turn {
   id: string;
@@ -55,10 +56,11 @@ export function AssistantScreen() {
               <span className="inline-grid place-items-center size-14 rounded-2xl bg-brand-soft text-brand mb-3">
                 <Sparkles className="size-6" />
               </span>
-              <h2 className="font-semibold text-[17px]">שאלי אותי על הטיול</h2>
+              <h2 className="font-semibold text-[17px]">שאלו אותי, או הדביקו נתונים</h2>
               <p className="text-[13.5px] text-muted mt-1.5 max-w-md mx-auto leading-relaxed">
-                אני עונה רק לפי הנתונים שהזנת — מסלול, נסיעות, מלונות, טיסות, תקציב ומקומות
-                שמורים. אני לא ממציא מידע שאין לי.
+                אני עונה רק לפי נתוני הטיול — מסלול, נסיעות, מלונות, טיסות ותקציב — ולא ממציא
+                מידע שאין לי. אפשר גם להדביק כאן שורות של הזמנות או הוצאות, ואני אציע להוסיף
+                אותן למקום הנכון. שום דבר לא נשמר לפני שמאשרים.
               </p>
             </div>
 
@@ -111,6 +113,8 @@ export function AssistantScreen() {
                         </ul>
                       )}
 
+                      {turn.answer.plan && <PlanCard plan={turn.answer.plan} />}
+
                       {turn.answer.link && (
                         <Link
                           href={turn.answer.link.href}
@@ -137,15 +141,24 @@ export function AssistantScreen() {
 
         <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:bottom-4 pt-2 bg-bg">
           <div className="flex gap-2">
-            <input
+            {/* A textarea, not an input: pasting several lines into a
+                single-line field silently joins them, and a paste of several
+                bookings is half the point of this screen. */}
+            <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') void ask(input);
+                // Enter sends, Shift+Enter breaks a line. A paste never
+                // triggers either, so multi-line data arrives intact.
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  void ask(input);
+                }
               }}
-              placeholder="מה אנחנו עושים מחר?"
-              aria-label="שאלה לעוזר"
-              className="flex-1 h-12 px-4 rounded-2xl bg-surface border border-line text-[15px] outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition"
+              rows={input.includes('\n') ? Math.min(8, input.split('\n').length) : 1}
+              placeholder="שאלה, או הדבקת נתונים להוספה"
+              aria-label="שאלה לעוזר או נתונים להוספה"
+              className="flex-1 min-h-12 py-3 px-4 rounded-2xl bg-surface border border-line text-[15px] outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition resize-none leading-snug"
             />
             <Button
               onClick={() => void ask(input)}
