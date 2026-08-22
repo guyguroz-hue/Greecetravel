@@ -92,15 +92,18 @@ export function parseQuickAdd(
   }
 
   if (!matched.date) {
-    if (/\bאתמול\b|\byesterday\b/.test(rest)) {
+    // No `\b` on the Hebrew: it is an ASCII-only boundary and never fires
+    // beside a Hebrew letter, so these three matched nothing and every
+    // "מחר" silently became today.
+    if (/אתמול|\byesterday\b/.test(rest)) {
       date = shiftDate(today, -1);
       matched.date = true;
       rest = rest.replace(/אתמול|yesterday/g, ' ');
-    } else if (/\bמחר\b|\btomorrow\b/.test(rest)) {
+    } else if (/מחר|\btomorrow\b/.test(rest)) {
       date = shiftDate(today, 1);
       matched.date = true;
       rest = rest.replace(/מחר|tomorrow/g, ' ');
-    } else if (/\bהיום\b|\btoday\b/.test(rest)) {
+    } else if (/היום|\btoday\b/.test(rest)) {
       matched.date = true;
       rest = rest.replace(/היום|today/g, ' ');
     }

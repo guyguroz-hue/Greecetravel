@@ -38,6 +38,12 @@ export type PlanOp =
       category: ExpenseCategory;
       description: string;
       paid: boolean;
+      /**
+       * The clock time, when the line carried one. An expense has nowhere to
+       * store this — it is here only so the paired activity can inherit it,
+       * and the store ignores it.
+       */
+      time?: string;
     }
   | {
       kind: 'hotel';
@@ -152,7 +158,45 @@ function takeDate(text: string, ctx: PlanContext): { date?: string; rest: string
     if (d) return { date: d, rest: text.replace(m[0], ' ') };
   }
 
+  // "25 באוגוסט" — how a date gets written when it is not being typed as a
+  // form field.
+  const named = text.match(
+    /(\d{1,2})\s+ב?(ינואר|פברואר|מרץ|אפריל|מאי|יוני|יולי|אוגוסט|ספטמבר|אוקטובר|נובמבר|דצמבר)/
+  );
+  if (named) {
+    const month = MONTHS_HE[named[2]];
+    const d = iso(yearFor(month, ctx), month, Number(named[1]));
+    if (d) return { date: d, rest: text.replace(named[0], ' ') };
+  }
+
+  // Relative days. These have to be handled here rather than left to the
+  // quick-add parser downstream, because that one only ever runs for a line
+  // that already has an amount — so "ארוחת ערב מחר" could not be dated at all,
+  // and failed outright.
+  const today = ctx.today ?? new Date().toISOString().slice(0, 10);
+  const relative: [RegExp, number][] = [
+    [/מחרתיים/, 2],
+    [/מחר|\btomorrow\b/, 1],
+    [/היום|\btoday\b/, 0],
+    [/אתמול|\byesterday\b/, -1],
+  ];
+  for (const [re, offset] of relative) {
+    if (re.test(text)) {
+      return { date: shift(today, offset), rest: text.replace(re, ' ') };
+    }
+  }
+
   return { rest: text };
+}
+
+const MONTHS_HE: Record<string, number> = {
+  ינואר: 1, פברואר: 2, מרץ: 3, אפריל: 4, מאי: 5, יוני: 6,
+  יולי: 7, אוגוסט: 8, ספטמבר: 9, אוקטובר: 10, נובמבר: 11, דצמבר: 12,
+};
+
+function shift(isoDate: string, days: number): string {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
 interface Bits {
@@ -426,6 +470,7 @@ function asExpense(line: string, bits: Bits, ctx: PlanContext): PlanOp | undefin
     category: viaQuickAdd.category,
     description: description || 'הוצאה',
     paid,
+    time: bits.time,
   };
 }
 
@@ -458,12 +503,58 @@ export function planFromText(text: string, ctx: PlanContext): PlanLine[] {
           source,
           problem: bits.date
             ? 'לא הצלחתי להבין מה להוסיף — צריך גם תיאור'
-            : 'צריך תאריך בשורה, למשל 26/8',
+            : 'צריך תאריך בשורה, למשל 26/8 או ״מחר״',
         };
       }
       return { source, op };
+    })
+    .flatMap((line) => {
+      // A meal, a museum, a boat: paying for it is half the story, and doing
+      // it is the other half. The two used to be exclusive — money made a
+      // line an expense and that was that — which put dinner in the budget
+      // and left the evening blank in the itinerary.
+      //
+      // Both are proposed, both tickable, so wanting only one costs a tap.
+      const twin = companionActivity(line.op);
+      return twin ? [line, { source: line.source, op: twin }] : [line];
     });
 }
+
+/**
+ * Expense categories that describe something you *did*, not merely something
+ * you paid for.
+ *
+ * A dinner, a coffee, a museum, a ferry crossing all belong on the day as
+ * well as in the budget. A hotel bill, a flight ticket, a car hire and a tank
+ * of fuel do not: hotels and flights already have records of their own, and
+ * pairing them here would put a second copy on the itinerary.
+ */
+const EXPERIENCE: ReadonlySet<ExpenseCategory> = new Set<ExpenseCategory>([
+  'food',
+  'coffee',
+  'attractions',
+  'ferries',
+]);
+
+/** The itinerary half of an expense that is also an outing. */
+function companionActivity(op: PlanOp | undefined): PlanOp | undefined {
+  if (!op || op.kind !== 'expense') return undefined;
+  if (!EXPERIENCE.has(op.category)) return undefined;
+  return {
+    kind: 'activity',
+    date: op.date,
+    title: op.description,
+    startTime: op.time,
+    category: EXPENSE_TO_ACTIVITY[op.category] ?? 'activity',
+  };
+}
+
+const EXPENSE_TO_ACTIVITY: Partial<Record<ExpenseCategory, ActivityCategory>> = {
+  food: 'food',
+  coffee: 'coffee',
+  attractions: 'attraction',
+  ferries: 'activity',
+};
 
 /** One-line human summary of what an operation would create. */
 export function describeOp(op: PlanOp): string {
