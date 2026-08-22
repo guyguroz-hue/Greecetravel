@@ -84,8 +84,9 @@ export function AssistantScreen() {
               <h2 className="font-semibold text-[17px]">שאלו אותי, או הדביקו נתונים</h2>
               <p className="text-[13.5px] text-muted mt-1.5 max-w-md mx-auto leading-relaxed">
                 אני עונה רק לפי נתוני הטיול — מסלול, נסיעות, מלונות, טיסות ותקציב — ולא ממציא
-                מידע שאין לי. אפשר גם להדביק כאן שורות של הזמנות או הוצאות, ואני אציע להוסיף
-                אותן למקום הנכון. שום דבר לא נשמר לפני שמאשרים.
+                מידע שאין לי. אפשר גם להדביק שורות ואני אציע להוסיף אותן למקום הנכון: פעילות
+                היא <span className="whitespace-nowrap">תיאור + תאריך</span> (ושעה, אם יש),
+                והוצאה היא אותו דבר עם סכום. שום דבר לא נשמר לפני שמאשרים.
               </p>
             </div>
 
@@ -181,7 +182,7 @@ export function AssistantScreen() {
                 }
               }}
               rows={input.includes('\n') ? Math.min(8, input.split('\n').length) : 1}
-              placeholder="שאלה, או הדבקת נתונים להוספה"
+              placeholder="שאלה, או למשל: 19:00 ארוחת ערב 25/8"
               aria-label="שאלה לעוזר או נתונים להוספה"
               className="flex-1 min-h-12 py-3 px-4 rounded-2xl bg-surface border border-line text-[15px] outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition resize-none leading-snug"
             />

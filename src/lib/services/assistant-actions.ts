@@ -131,24 +131,62 @@ function yearFor(month: number, ctx: PlanContext): number {
   return month >= startMonth ? startYear : endYear;
 }
 
-/** A single date anywhere in the text, as ISO. Consumes what it matched. */
+/**
+ * A single date anywhere in the text, as ISO. Consumes what it matched.
+ *
+ * Every candidate is tried, not just the first. `19.00 ארוחה 25/8` leads with
+ * something date-shaped that is not a date — month zero — and stopping at the
+ * first match would throw away the real date sitting further along the line.
+ */
 function takeDate(text: string, ctx: PlanContext): { date?: string; rest: string } {
-  const full = text.match(/\b(\d{1,2})[./](\d{1,2})[./](\d{2,4})\b/);
-  if (full) {
-    let y = Number(full[3]);
+  for (const m of text.matchAll(/\b(\d{1,2})[./](\d{1,2})[./](\d{2,4})\b/g)) {
+    let y = Number(m[3]);
     if (y < 100) y += 2000;
-    const d = iso(y, Number(full[2]), Number(full[1]));
-    if (d) return { date: d, rest: text.replace(full[0], ' ') };
+    const d = iso(y, Number(m[2]), Number(m[1]));
+    if (d) return { date: d, rest: text.replace(m[0], ' ') };
   }
 
-  const dm = text.match(/\b(\d{1,2})[./](\d{1,2})\b/);
-  if (dm) {
-    const month = Number(dm[2]);
-    const d = iso(yearFor(month, ctx), month, Number(dm[1]));
-    if (d) return { date: d, rest: text.replace(dm[0], ' ') };
+  for (const m of text.matchAll(/\b(\d{1,2})[./](\d{1,2})\b/g)) {
+    const month = Number(m[2]);
+    const d = iso(yearFor(month, ctx), month, Number(m[1]));
+    if (d) return { date: d, rest: text.replace(m[0], ' ') };
   }
 
   return { rest: text };
+}
+
+interface Bits {
+  date?: string;
+  time?: string;
+  currency: CurrencyCode;
+  /** True when a currency symbol or word was actually written. */
+  marked: boolean;
+  amount?: number;
+  /** The line with date, time, currency and amount removed. */
+  rest: string;
+}
+
+/**
+ * Pull the structured pieces out of a line, in an order that matters.
+ *
+ * The date and the clock time come out FIRST, before anything looks for an
+ * amount. Both are made of digits, and a search for money that runs before
+ * they are removed finds them: `ביקור במנזר 26/8` becomes an expense of 26,
+ * and `19:00 ארוחת ערב ₪240` becomes an expense of 19. Both did, until this
+ * function existed — and neither looks like an error afterwards, which is what
+ * makes it the worst kind.
+ */
+function extract(line: string, ctx: PlanContext): Bits {
+  const { date, rest: noDate } = takeDate(line, ctx);
+
+  const t = noDate.match(TIME);
+  const time = t ? `${t[1].padStart(2, '0')}:${t[2]}` : undefined;
+  const noTime = t ? noDate.replace(t[0], ' ') : noDate;
+
+  const { currency, rest: noCurrency } = takeCurrency(noTime, ctx.defaultCurrency);
+  const { amount, rest } = takeAmount(noCurrency);
+
+  return { date, time, currency, marked: noCurrency !== noTime, amount, rest };
 }
 
 function takeCurrency(text: string, fallback: CurrencyCode): { currency: CurrencyCode; rest: string } {
@@ -225,10 +263,42 @@ const ACTIVITY_WORDS: [ActivityCategory, string[]][] = [
   ['attraction', ['מוזיאון', 'מנזר', 'ביקור', 'סיור', 'museum', 'tour', 'כניסה']],
 ];
 
+/**
+ * Whole-word keyword matching, for a language that glues its prepositions on.
+ *
+ * A plain `includes` is unusable here. `ים` is a real word meaning sea, and it
+ * is also the standard masculine plural ending, so a substring test files
+ * `סיור במנזרים` under "beach" — and `הר` does the same inside `מהר` and
+ * `אחרי`. JavaScript's `\b` is no help, being defined over ASCII only.
+ *
+ * So the text is split into words and each is compared whole, allowing the
+ * single-letter prefixes Hebrew attaches directly to a noun — the ב of בחוף,
+ * the ל of לים. `בחוף` matches `חוף`; `במנזרים` does not match `ים`, because
+ * stripping one letter leaves `מנזרים`, not `ים`.
+ */
+const HEBREW_PREFIXES = 'בלהומשכ';
+
+function hasKeyword(text: string, keyword: string): boolean {
+  if (/[a-z]/i.test(keyword)) return new RegExp(`\\b${keyword}\\b`, 'i').test(text);
+
+  for (const word of text.split(/[^\p{L}\p{N}']+/u)) {
+    if (!word) continue;
+    if (word === keyword) return true;
+    if (
+      word.length === keyword.length + 1 &&
+      HEBREW_PREFIXES.includes(word[0]) &&
+      word.slice(1) === keyword
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function activityCategory(text: string): ActivityCategory {
   const lower = text.toLowerCase();
   for (const [cat, words] of ACTIVITY_WORDS) {
-    if (words.some((w) => lower.includes(w))) return cat;
+    if (words.some((w) => hasKeyword(lower, w))) return cat;
   }
   return 'activity';
 }
@@ -307,41 +377,40 @@ function asHotel(line: string, ctx: PlanContext): PlanOp | undefined {
   };
 }
 
-function asActivity(line: string, ctx: PlanContext): PlanOp | undefined {
-  const time = line.match(TIME);
-  if (!time) return undefined;
+/**
+ * A day's plan: something happening on a date, with no price on it.
+ *
+ * A clock time is welcome but not required. Half of what goes into an
+ * itinerary has no time — a free morning, a monastery, a market — and
+ * demanding one meant those lines fell through to the expense reader, which
+ * read the day of the month as an amount and quietly invented a cost.
+ */
+function asActivity(bits: Bits): PlanOp | undefined {
+  if (!bits.date) return undefined;
+  // A price on the line makes it a record of spending, not a plan.
+  if (bits.amount !== undefined || bits.marked) return undefined;
 
-  const { date, rest } = takeDate(line, ctx);
-  if (!date) return undefined;
-
-  // A clock time plus a price is a receipt, not a plan for the day.
-  const { rest: noCur } = takeCurrency(rest, ctx.defaultCurrency);
-  const hasMoney = noCur !== rest;
-  if (hasMoney) return undefined;
-
-  const title = clean(rest.replace(time[0], ' '));
+  const title = clean(bits.rest);
   if (!title) return undefined;
 
   return {
     kind: 'activity',
-    date,
+    date: bits.date,
     title,
-    startTime: `${time[1].padStart(2, '0')}:${time[2]}`,
+    startTime: bits.time,
     category: activityCategory(title),
   };
 }
 
-function asExpense(line: string, ctx: PlanContext): PlanOp | undefined {
-  const { currency, rest: noCur } = takeCurrency(line, ctx.defaultCurrency);
-  const { amount, rest: noAmount } = takeAmount(noCur);
-  if (amount === undefined) return undefined;
+function asExpense(line: string, bits: Bits, ctx: PlanContext): PlanOp | undefined {
+  if (bits.amount === undefined) return undefined;
 
-  // The quick-add bar already knows how to read a date and a category out of
-  // a phrase; only the amount is re-done here, because its reading of
-  // thousands separators is wrong and this is bulk paste, where a silent
-  // factor-of-a-thousand error is not survivable.
-  const viaQuickAdd = parseQuickAdd(noAmount, {
-    defaultCurrency: currency,
+  // The quick-add bar already knows how to read a category, and the relative
+  // dates a bare regex misses — "אתמול", "מחר", Hebrew month names. It runs on
+  // what is left after the amount and the date are gone, so its own weaker
+  // amount reading cannot fire.
+  const viaQuickAdd = parseQuickAdd(bits.rest, {
+    defaultCurrency: bits.currency,
     tripYear: Number((ctx.startDate ?? ctx.today ?? '').slice(0, 4)) || undefined,
     today: ctx.today,
   });
@@ -351,9 +420,9 @@ function asExpense(line: string, ctx: PlanContext): PlanOp | undefined {
 
   return {
     kind: 'expense',
-    date: viaQuickAdd.date,
-    amount,
-    currency,
+    date: bits.date ?? viaQuickAdd.date,
+    amount: bits.amount,
+    currency: bits.currency,
     category: viaQuickAdd.category,
     description: description || 'הוצאה',
     paid,
@@ -375,18 +444,21 @@ export function planFromText(text: string, ctx: PlanContext): PlanLine[] {
     .map((l) => l.trim())
     .filter((l) => l.length > 0)
     .map((source): PlanLine => {
-      const op =
-        asFlight(source, ctx) ??
-        asHotel(source, ctx) ??
-        asActivity(source, ctx) ??
-        asExpense(source, ctx);
+      // Flights and hotels are decided on their own evidence — a flight
+      // number, a date range — before the line is taken apart, because a
+      // range is two dates and the general extraction would eat the first.
+      const special = asFlight(source, ctx) ?? asHotel(source, ctx);
+      if (special) return { source, op: special };
+
+      const bits = extract(source, ctx);
+      const op = asExpense(source, bits, ctx) ?? asActivity(bits);
 
       if (!op) {
         return {
           source,
-          problem: /\d/.test(source)
-            ? 'לא זוהו סכום או תאריך בשורה'
-            : 'אין בשורה מספרים — צריך לפחות סכום או תאריך',
+          problem: bits.date
+            ? 'לא הצלחתי להבין מה להוסיף — צריך גם תיאור'
+            : 'צריך תאריך בשורה, למשל 26/8',
         };
       }
       return { source, op };
